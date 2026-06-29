@@ -2,12 +2,22 @@ class Word {
   final int? id;
   final String word;
   final String translation;
+  final String? definition; // التعريف بالإنجليزية
+  final String? example; // مثال على الكلمة
+  final String? phonetic; // النطق الصوتي (IPA)
+  final String? audioUrl; // رابط ملف النطق الصوتي
+  final String? partOfSpeech; // نوع الكلمة (noun, verb, adjective)
   final DateTime createdAt;
 
   Word({
     this.id,
     required this.word,
     required this.translation,
+    this.definition,
+    this.example,
+    this.phonetic,
+    this.audioUrl,
+    this.partOfSpeech,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -17,6 +27,11 @@ class Word {
       'id': id,
       'word': word,
       'translation': translation,
+      'definition': definition,
+      'example': example,
+      'phonetic': phonetic,
+      'audioUrl': audioUrl,
+      'partOfSpeech': partOfSpeech,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -27,6 +42,11 @@ class Word {
       id: map['id'] as int?,
       word: map['word'] as String,
       translation: map['translation'] as String,
+      definition: map['definition'] as String?,
+      example: map['example'] as String?,
+      phonetic: map['phonetic'] as String?,
+      audioUrl: map['audioUrl'] as String?,
+      partOfSpeech: map['partOfSpeech'] as String?,
       createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
@@ -36,12 +56,22 @@ class Word {
     int? id,
     String? word,
     String? translation,
+    String? definition,
+    String? example,
+    String? phonetic,
+    String? audioUrl,
+    String? partOfSpeech,
     DateTime? createdAt,
   }) {
     return Word(
       id: id ?? this.id,
       word: word ?? this.word,
       translation: translation ?? this.translation,
+      definition: definition ?? this.definition,
+      example: example ?? this.example,
+      phonetic: phonetic ?? this.phonetic,
+      audioUrl: audioUrl ?? this.audioUrl,
+      partOfSpeech: partOfSpeech ?? this.partOfSpeech,
       createdAt: createdAt ?? this.createdAt,
     );
   }

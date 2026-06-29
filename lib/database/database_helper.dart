@@ -22,21 +22,38 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // تحديث الإصدار للمرحلة الثانية
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
   }
 
-  // إنشاء الجداول
+  // إنشاء الجداول (للتثبيت الجديد)
   Future<void> _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE words (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         word TEXT NOT NULL,
         translation TEXT NOT NULL,
+        definition TEXT,
+        example TEXT,
+        phonetic TEXT,
+        audioUrl TEXT,
+        partOfSpeech TEXT,
         createdAt TEXT NOT NULL
       )
     ''');
+  }
+
+  // ترقية قاعدة البيانات (للمستخدمين الذين لديهم النسخة القديمة)
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE words ADD COLUMN definition TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN example TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN phonetic TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN audioUrl TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN partOfSpeech TEXT');
+    }
   }
 
   // إضافة كلمة جديدة
@@ -50,6 +67,14 @@ class DatabaseHelper {
     final db = await database;
     final result = await db.query('words', orderBy: 'createdAt DESC');
     return result.map((map) => Word.fromMap(map)).toList();
+  }
+
+  // جلب كلمة واحدة بالـ ID
+  Future<Word?> getWordById(int id) async {
+    final db = await database;
+    final result = await db.query('words', where: 'id = ?', whereArgs: [id]);
+    if (result.isEmpty) return null;
+    return Word.fromMap(result.first);
   }
 
   // حذف كلمة
@@ -85,6 +110,17 @@ class DatabaseHelper {
     final db = await database;
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM words');
     return result.first['count'] as int;
+  }
+
+  // التحقق من وجود كلمة مسبقاً
+  Future<bool> wordExists(String word) async {
+    final db = await database;
+    final result = await db.query(
+      'words',
+      where: 'LOWER(word) = ?',
+      whereArgs: [word.toLowerCase()],
+    );
+    return result.isNotEmpty;
   }
 
   // إغلاق قاعدة البيانات

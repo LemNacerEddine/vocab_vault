@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/word.dart';
 import 'add_word_screen.dart';
+import 'word_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -60,6 +61,16 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+  }
+
+  // الانتقال إلى شاشة التفاصيل
+  void _openWordDetail(Word word) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WordDetailScreen(word: word),
+      ),
+    );
   }
 
   @override
@@ -149,6 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
           elevation: 2,
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(
+            onTap: () => _openWordDetail(word),
             leading: CircleAvatar(
               backgroundColor: Theme.of(context).colorScheme.primary,
               child: Text(
@@ -166,9 +178,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 16,
               ),
             ),
-            subtitle: Text(
-              word.translation,
-              style: const TextStyle(fontSize: 14),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  word.translation,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                if (word.partOfSpeech != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        word.partOfSpeech!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.deepPurple.shade700,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
