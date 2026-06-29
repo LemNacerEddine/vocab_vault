@@ -1,16 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../models/word.dart';
 
-class WordDetailScreen extends StatelessWidget {
+class WordDetailScreen extends StatefulWidget {
   final Word word;
 
   const WordDetailScreen({super.key, required this.word});
 
   @override
+  State<WordDetailScreen> createState() => _WordDetailScreenState();
+}
+
+class _WordDetailScreenState extends State<WordDetailScreen> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  // تشغيل النطق الصوتي
+  Future<void> _playAudio() async {
+    if (widget.word.audioUrl == null || widget.word.audioUrl!.isEmpty) return;
+
+    try {
+      setState(() => _isPlaying = true);
+      await _audioPlayer.play(UrlSource(widget.word.audioUrl!));
+      _audioPlayer.onPlayerComplete.listen((_) {
+        if (mounted) setState(() => _isPlaying = false);
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isPlaying = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا يمكن تشغيل الصوت. تحقق من اتصال الإنترنت.'),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(word.word),
+        title: Text(widget.word.word),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
@@ -19,22 +57,69 @@ class WordDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // الصورة التوضيحية (إن وجدت)
+            if (widget.word.imageUrl != null) _buildImageCard(),
+
             // بطاقة الكلمة الرئيسية
             _buildMainCard(context),
             const SizedBox(height: 16),
 
             // بطاقة التعريف
-            if (word.definition != null) _buildDefinitionCard(),
-            const SizedBox(height: 16),
+            if (widget.word.definition != null) _buildDefinitionCard(),
+            if (widget.word.definition != null) const SizedBox(height: 16),
 
             // بطاقة المثال
-            if (word.example != null) _buildExampleCard(),
-            const SizedBox(height: 16),
+            if (widget.word.example != null) _buildExampleCard(),
+            if (widget.word.example != null) const SizedBox(height: 16),
 
             // تاريخ الإضافة
             _buildDateCard(),
           ],
         ),
+      ),
+    );
+  }
+
+  // بطاقة الصورة التوضيحية
+  Widget _buildImageCard() {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.only(bottom: 16),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 200,
+            width: double.infinity,
+            child: CachedNetworkImage(
+              imageUrl: widget.word.imageUrl!,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.grey[200],
+                child: const Icon(Icons.broken_image, size: 50),
+              ),
+            ),
+          ),
+          if (widget.word.imageDescription != null &&
+              widget.word.imageDescription!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                widget.word.imageDescription!,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.ltr,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -49,7 +134,7 @@ class WordDetailScreen extends StatelessWidget {
           children: [
             // الكلمة بالإنجليزية
             Text(
-              word.word,
+              widget.word.word,
               style: const TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
@@ -58,20 +143,34 @@ class WordDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
 
-            // النطق الصوتي
-            if (word.phonetic != null)
-              Text(
-                word.phonetic!,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.grey[600],
-                ),
+            // النطق الصوتي مع زر التشغيل
+            if (widget.word.phonetic != null)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    widget.word.phonetic!,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  if (widget.word.audioUrl != null &&
+                      widget.word.audioUrl!.isNotEmpty)
+                    IconButton(
+                      onPressed: _isPlaying ? null : _playAudio,
+                      icon: Icon(
+                        _isPlaying ? Icons.pause_circle : Icons.play_circle,
+                        color: Colors.deepPurple,
+                        size: 32,
+                      ),
+                    ),
+                ],
               ),
-            const SizedBox(height: 4),
 
             // نوع الكلمة
-            if (word.partOfSpeech != null)
+            if (widget.word.partOfSpeech != null)
               Container(
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.symmetric(
@@ -83,7 +182,7 @@ class WordDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  word.partOfSpeech!,
+                  widget.word.partOfSpeech!,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.deepPurple.shade700,
@@ -103,7 +202,7 @@ class WordDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              word.translation,
+              widget.word.translation,
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
@@ -141,7 +240,7 @@ class WordDetailScreen extends StatelessWidget {
             ),
             const Divider(),
             Text(
-              word.definition!,
+              widget.word.definition!,
               style: const TextStyle(fontSize: 15, height: 1.5),
               textDirection: TextDirection.ltr,
             ),
@@ -177,7 +276,7 @@ class WordDetailScreen extends StatelessWidget {
             ),
             const Divider(),
             Text(
-              '"${word.example!}"',
+              '"${widget.word.example!}"',
               style: const TextStyle(
                 fontSize: 15,
                 fontStyle: FontStyle.italic,
@@ -204,7 +303,7 @@ class WordDetailScreen extends StatelessWidget {
             Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
             const SizedBox(width: 8),
             Text(
-              'تمت الإضافة: ${_formatDate(word.createdAt)}',
+              'تمت الإضافة: ${_formatDate(widget.word.createdAt)}',
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.grey[600],

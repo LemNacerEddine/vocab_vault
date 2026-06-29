@@ -22,7 +22,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2, // تحديث الإصدار للمرحلة الثانية
+      version: 3, // تحديث الإصدار للمرحلة الثالثة (إضافة الصور)
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -40,6 +40,8 @@ class DatabaseHelper {
         phonetic TEXT,
         audioUrl TEXT,
         partOfSpeech TEXT,
+        imageUrl TEXT,
+        imageDescription TEXT,
         createdAt TEXT NOT NULL
       )
     ''');
@@ -53,6 +55,10 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE words ADD COLUMN phonetic TEXT');
       await db.execute('ALTER TABLE words ADD COLUMN audioUrl TEXT');
       await db.execute('ALTER TABLE words ADD COLUMN partOfSpeech TEXT');
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE words ADD COLUMN imageUrl TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN imageDescription TEXT');
     }
   }
 

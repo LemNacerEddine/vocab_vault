@@ -7,6 +7,8 @@ class Word {
   final String? phonetic; // النطق الصوتي (IPA)
   final String? audioUrl; // رابط ملف النطق الصوتي
   final String? partOfSpeech; // نوع الكلمة (noun, verb, adjective)
+  final String? imageUrl; // رابط صورة توضيحية من Unsplash
+  final String? imageDescription; // وصف الصورة
   final DateTime createdAt;
 
   Word({
@@ -18,6 +20,8 @@ class Word {
     this.phonetic,
     this.audioUrl,
     this.partOfSpeech,
+    this.imageUrl,
+    this.imageDescription,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -32,6 +36,8 @@ class Word {
       'phonetic': phonetic,
       'audioUrl': audioUrl,
       'partOfSpeech': partOfSpeech,
+      'imageUrl': imageUrl,
+      'imageDescription': imageDescription,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -47,6 +53,8 @@ class Word {
       phonetic: map['phonetic'] as String?,
       audioUrl: map['audioUrl'] as String?,
       partOfSpeech: map['partOfSpeech'] as String?,
+      imageUrl: map['imageUrl'] as String?,
+      imageDescription: map['imageDescription'] as String?,
       createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
@@ -61,6 +69,8 @@ class Word {
     String? phonetic,
     String? audioUrl,
     String? partOfSpeech,
+    String? imageUrl,
+    String? imageDescription,
     DateTime? createdAt,
   }) {
     return Word(
@@ -72,6 +82,8 @@ class Word {
       phonetic: phonetic ?? this.phonetic,
       audioUrl: audioUrl ?? this.audioUrl,
       partOfSpeech: partOfSpeech ?? this.partOfSpeech,
+      imageUrl: imageUrl ?? this.imageUrl,
+      imageDescription: imageDescription ?? this.imageDescription,
       createdAt: createdAt ?? this.createdAt,
     );
   }
