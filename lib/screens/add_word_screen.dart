@@ -56,7 +56,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
         _dictionaryResult = result;
         _searchError = null;
       } else {
-        _searchError = 'لم يتم العثور على الكلمة. تأكد من الإملاء أو اتصال الإنترنت.';
+        _searchError = 'لم يتم العثور على الكلمة. تأكد من الإملاء أو اتصال الإنترنت.\nيمكنك حفظ الكلمة يدوياً بإدخال الترجمة والضغط على حفظ.';
       }
     });
   }

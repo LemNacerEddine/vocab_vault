@@ -29,8 +29,11 @@ class DictionaryService {
   /// يُرجع DictionaryResult إذا وُجدت الكلمة، أو null إذا لم تُوجد
   static Future<DictionaryResult?> lookupWord(String word) async {
     try {
-      final url = Uri.parse('$_baseUrl/${word.trim().toLowerCase()}');
-      final response = await http.get(url);
+      final cleanWord = word.trim().toLowerCase();
+      final url = Uri.parse('$_baseUrl/$cleanWord');
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 10),
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -44,6 +47,8 @@ class DictionaryService {
       }
     } catch (e) {
       // خطأ في الاتصال (لا يوجد إنترنت مثلاً)
+      // طباعة الخطأ للتصحيح
+      print('DictionaryService Error: $e');
       return null;
     }
   }
