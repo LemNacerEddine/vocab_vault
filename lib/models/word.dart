@@ -14,6 +14,7 @@ class Word {
   final String? antonyms; // الأضداد (مفصولة بفاصلة)
   final String? imageUrl; // رابط صورة توضيحية من Unsplash
   final String? imageDescription; // وصف الصورة
+  final String? allImageUrls; // جميع روابط الصور (مفصولة بـ |)
   final DateTime createdAt;
 
   Word({
@@ -32,6 +33,7 @@ class Word {
     this.antonyms,
     this.imageUrl,
     this.imageDescription,
+    this.allImageUrls,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -52,6 +54,10 @@ class Word {
       allDefinitions?.split('\n').where((s) => s.trim().isNotEmpty).toList() ??
       [];
 
+  // تحويل جميع روابط الصور من نص إلى قائمة
+  List<String> get imageUrlsList =>
+      allImageUrls?.split('|').where((s) => s.trim().isNotEmpty).toList() ?? [];
+
   // تحويل الكلمة إلى Map لحفظها في قاعدة البيانات
   Map<String, dynamic> toMap() {
     return {
@@ -70,6 +76,7 @@ class Word {
       'antonyms': antonyms,
       'imageUrl': imageUrl,
       'imageDescription': imageDescription,
+      'allImageUrls': allImageUrls,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -92,6 +99,7 @@ class Word {
       antonyms: map['antonyms'] as String?,
       imageUrl: map['imageUrl'] as String?,
       imageDescription: map['imageDescription'] as String?,
+      allImageUrls: map['allImageUrls'] as String?,
       createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
@@ -113,6 +121,7 @@ class Word {
     String? antonyms,
     String? imageUrl,
     String? imageDescription,
+    String? allImageUrls,
     DateTime? createdAt,
   }) {
     return Word(
@@ -131,6 +140,7 @@ class Word {
       antonyms: antonyms ?? this.antonyms,
       imageUrl: imageUrl ?? this.imageUrl,
       imageDescription: imageDescription ?? this.imageDescription,
+      allImageUrls: allImageUrls ?? this.allImageUrls,
       createdAt: createdAt ?? this.createdAt,
     );
   }

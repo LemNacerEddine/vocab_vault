@@ -139,25 +139,39 @@ class DictionaryService {
 
     if (entry.containsKey('phonetics') && entry['phonetics'] is List) {
       final phonetics = entry['phonetics'] as List;
+      
+      // أولاً: البحث عن عنصر يحتوي على audio (الأهم)
       for (final p in phonetics) {
         if (p is Map<String, dynamic>) {
-          if (phonetic == null &&
-              p['text'] != null &&
-              p['text'].toString().isNotEmpty) {
-            phonetic = p['text'] as String;
-          }
-          if (audioUrl == null &&
-              p['audio'] != null &&
-              p['audio'].toString().isNotEmpty) {
+          if (p['audio'] != null && p['audio'].toString().isNotEmpty) {
             audioUrl = p['audio'] as String;
+            // إذا نفس العنصر يحتوي على text، نأخذه
+            if (p['text'] != null && p['text'].toString().isNotEmpty) {
+              phonetic = p['text'] as String;
+            }
+            break;
+          }
+        }
+      }
+      
+      // ثانياً: إذا لم نجد phonetic text بعد، نبحث في كل العناصر
+      if (phonetic == null) {
+        for (final p in phonetics) {
+          if (p is Map<String, dynamic>) {
+            if (p['text'] != null && p['text'].toString().isNotEmpty) {
+              phonetic = p['text'] as String;
+              break;
+            }
           }
         }
       }
     }
 
+    // ثالثاً: التحقق من حقل phonetic الرئيسي
     if (phonetic == null &&
         entry.containsKey('phonetic') &&
-        entry['phonetic'] != null) {
+        entry['phonetic'] != null &&
+        entry['phonetic'].toString().isNotEmpty) {
       phonetic = entry['phonetic'] as String;
     }
 

@@ -20,7 +20,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -44,6 +44,7 @@ class DatabaseHelper {
         antonyms TEXT,
         imageUrl TEXT,
         imageDescription TEXT,
+        allImageUrls TEXT,
         createdAt TEXT NOT NULL
       )
     ''');
@@ -67,6 +68,9 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE words ADD COLUMN allPartsOfSpeech TEXT');
       await db.execute('ALTER TABLE words ADD COLUMN synonyms TEXT');
       await db.execute('ALTER TABLE words ADD COLUMN antonyms TEXT');
+    }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE words ADD COLUMN allImageUrls TEXT');
     }
   }
 

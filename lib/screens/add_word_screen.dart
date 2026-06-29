@@ -109,6 +109,9 @@ class _AddWordScreenState extends State<AddWordScreen> {
       antonyms: _dictionaryResult?.allAntonyms.join(','),
       imageUrl: _selectedImage?.regularUrl,
       imageDescription: _selectedImage?.description,
+      allImageUrls: _images.isNotEmpty
+          ? _images.map((img) => img.regularUrl).join('|')
+          : null,
     );
 
     await DatabaseHelper.instance.insertWord(word);

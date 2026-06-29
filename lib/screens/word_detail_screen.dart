@@ -48,16 +48,14 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // AppBar مع صورة خلفية
           _buildSliverAppBar(),
-          // المحتوى
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // بطاقة الكلمة الرئيسية
+                  // بطاقة الكلمة الرئيسية مع الصوت
                   _buildMainWordCard(),
                   const SizedBox(height: 16),
 
@@ -79,8 +77,17 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                       (widget.word.antonyms != null &&
                           widget.word.antonyms!.isNotEmpty))
                     _buildSynonymsAntonymsCard(),
+                  if ((widget.word.synonyms != null &&
+                          widget.word.synonyms!.isNotEmpty) ||
+                      (widget.word.antonyms != null &&
+                          widget.word.antonyms!.isNotEmpty))
+                    const SizedBox(height: 16),
 
-                  const SizedBox(height: 16),
+                  // بطاقة الصور التوضيحية
+                  if (widget.word.imageUrlsList.isNotEmpty)
+                    _buildImagesGalleryCard(),
+                  if (widget.word.imageUrlsList.isNotEmpty)
+                    const SizedBox(height: 16),
 
                   // تاريخ الإضافة
                   _buildDateCard(),
@@ -94,7 +101,7 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     );
   }
 
-  // AppBar مع صورة
+  // AppBar مع صورة خلفية
   Widget _buildSliverAppBar() {
     return SliverAppBar(
       expandedHeight: widget.word.imageUrl != null ? 220 : 120,
@@ -125,7 +132,6 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                           size: 50, color: Colors.white54),
                     ),
                   ),
-                  // تدرج لوني لقراءة النص
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -154,7 +160,7 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     );
   }
 
-  // بطاقة الكلمة الرئيسية
+  // بطاقة الكلمة الرئيسية مع زر الصوت البارز
   Widget _buildMainWordCard() {
     return Card(
       elevation: 4,
@@ -163,8 +169,66 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            // النطق الصوتي مع زر التشغيل
-            if (widget.word.phonetic != null)
+            // زر تشغيل الصوت البارز
+            if (widget.word.audioUrl != null &&
+                widget.word.audioUrl!.isNotEmpty) ...[
+              GestureDetector(
+                onTap: _isPlaying ? null : _playAudio,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: _isPlaying
+                          ? [Colors.grey.shade400, Colors.grey.shade500]
+                          : [Colors.deepPurple.shade400, Colors.deepPurple.shade700],
+                    ),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.deepPurple.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isPlaying
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_filled,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _isPlaying ? 'جاري التشغيل...' : 'استمع للنطق',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (widget.word.phonetic != null) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          widget.word.phonetic!,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ] else if (widget.word.phonetic != null) ...[
+              // عرض النطق بدون صوت
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -175,6 +239,9 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(Icons.record_voice_over,
+                        size: 18, color: Colors.deepPurple.shade400),
+                    const SizedBox(width: 8),
                     Text(
                       widget.word.phonetic!,
                       style: TextStyle(
@@ -183,34 +250,14 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                         color: Colors.deepPurple.shade700,
                       ),
                     ),
-                    if (widget.word.audioUrl != null &&
-                        widget.word.audioUrl!.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: _isPlaying ? null : _playAudio,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.deepPurple,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _isPlaying
-                                ? Icons.pause
-                                : Icons.volume_up_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+            ],
 
             // أنواع الكلمة
             if (widget.word.allPartsOfSpeech != null) ...[
-              const SizedBox(height: 12),
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -223,7 +270,8 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getPartOfSpeechColor(pos.trim()).withOpacity(0.1),
+                      color:
+                          _getPartOfSpeechColor(pos.trim()).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color:
@@ -241,9 +289,10 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                   );
                 }).toList(),
               ),
+              const SizedBox(height: 12),
             ],
 
-            const Divider(height: 32),
+            const Divider(height: 24),
 
             // الترجمة بالعربية
             Container(
@@ -310,8 +359,8 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child:
-                      Icon(Icons.menu_book, color: Colors.blue.shade600, size: 20),
+                  child: Icon(Icons.menu_book,
+                      color: Colors.blue.shade600, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -455,7 +504,6 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // المرادفات
             if (widget.word.synonymsList.isNotEmpty) ...[
               Row(
                 children: [
@@ -504,15 +552,12 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                 }).toList(),
               ),
             ],
-
             if (widget.word.synonymsList.isNotEmpty &&
                 widget.word.antonymsList.isNotEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Divider(height: 1),
               ),
-
-            // الأضداد
             if (widget.word.antonymsList.isNotEmpty) ...[
               Row(
                 children: [
@@ -561,6 +606,162 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                 }).toList(),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // بطاقة معرض الصور التوضيحية
+  Widget _buildImagesGalleryCard() {
+    final images = widget.word.imageUrlsList;
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.photo_library,
+                      color: Colors.purple.shade600, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'صور توضيحية (Visual Context)',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'هذه الصور تساعدك على ربط الكلمة بصريًا',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const Divider(height: 20),
+            SizedBox(
+              height: 160,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: images.length,
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () => _showFullImage(context, images[index]),
+                    child: Container(
+                      width: 200,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CachedNetworkImage(
+                              imageUrl: images[index],
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey.shade200,
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.broken_image),
+                              ),
+                            ),
+                            // أيقونة التكبير
+                            Positioned(
+                              bottom: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(
+                                  Icons.zoom_in,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // عرض الصورة بحجم كامل
+  void _showFullImage(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.contain,
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+                errorWidget: (context, url, error) =>
+                    const Icon(Icons.broken_image, color: Colors.white),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 20),
+                ),
+              ),
+            ),
           ],
         ),
       ),
