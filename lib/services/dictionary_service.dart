@@ -20,10 +20,18 @@ class DictionaryResult {
   });
 }
 
+//Get word definitions
+// Usage : The basic syntax of a URL request to the API is shown below:
+//
+// https://api.dictionaryapi.dev/api/v2/entries/en/<word>
+//
+// As an example, to get definition of English word hello, you can send request to
+//
+// https://api.dictionaryapi.dev/api/v2/entries/en/hello
 /// خدمة القاموس - تستخدم Free Dictionary API
 class DictionaryService {
   static const String _baseUrl =
-      'https://api.dictionaryapi.dev/api/v2/entries/english';
+      'https://api.dictionaryapi.dev/api/v2/entries/en';
 
   /// البحث عن كلمة في القاموس
   /// يُرجع DictionaryResult إذا وُجدت الكلمة، أو null إذا لم تُوجد
