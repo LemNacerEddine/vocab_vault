@@ -22,7 +22,6 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     super.dispose();
   }
 
-  // تشغيل النطق الصوتي
   Future<void> _playAudio() async {
     if (widget.word.audioUrl == null || widget.word.audioUrl!.isEmpty) return;
 
@@ -47,167 +46,244 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.word.word),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // الصورة التوضيحية (إن وجدت)
-            if (widget.word.imageUrl != null) _buildImageCard(),
+      body: CustomScrollView(
+        slivers: [
+          // AppBar مع صورة خلفية
+          _buildSliverAppBar(),
+          // المحتوى
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // بطاقة الكلمة الرئيسية
+                  _buildMainWordCard(),
+                  const SizedBox(height: 16),
 
-            // بطاقة الكلمة الرئيسية
-            _buildMainCard(context),
-            const SizedBox(height: 16),
+                  // بطاقة التعريفات
+                  if (widget.word.definition != null) _buildDefinitionsCard(),
+                  if (widget.word.definition != null) const SizedBox(height: 16),
 
-            // بطاقة التعريف
-            if (widget.word.definition != null) _buildDefinitionCard(),
-            if (widget.word.definition != null) const SizedBox(height: 16),
+                  // بطاقة الأمثلة
+                  if (widget.word.allExamples != null &&
+                      widget.word.allExamples!.isNotEmpty)
+                    _buildExamplesCard(),
+                  if (widget.word.allExamples != null &&
+                      widget.word.allExamples!.isNotEmpty)
+                    const SizedBox(height: 16),
 
-            // بطاقة المثال
-            if (widget.word.example != null) _buildExampleCard(),
-            if (widget.word.example != null) const SizedBox(height: 16),
+                  // بطاقة المرادفات والأضداد
+                  if ((widget.word.synonyms != null &&
+                          widget.word.synonyms!.isNotEmpty) ||
+                      (widget.word.antonyms != null &&
+                          widget.word.antonyms!.isNotEmpty))
+                    _buildSynonymsAntonymsCard(),
 
-            // تاريخ الإضافة
-            _buildDateCard(),
-          ],
-        ),
-      ),
-    );
-  }
+                  const SizedBox(height: 16),
 
-  // بطاقة الصورة التوضيحية
-  Widget _buildImageCard() {
-    return Card(
-      elevation: 4,
-      margin: const EdgeInsets.only(bottom: 16),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 200,
-            width: double.infinity,
-            child: CachedNetworkImage(
-              imageUrl: widget.word.imageUrl!,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.grey[200],
-                child: const Icon(Icons.broken_image, size: 50),
+                  // تاريخ الإضافة
+                  _buildDateCard(),
+                  const SizedBox(height: 32),
+                ],
               ),
             ),
           ),
-          if (widget.word.imageDescription != null &&
-              widget.word.imageDescription!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                widget.word.imageDescription!,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-                textAlign: TextAlign.center,
-                textDirection: TextDirection.ltr,
-              ),
-            ),
         ],
       ),
     );
   }
 
-  // بطاقة الكلمة الرئيسية
-  Widget _buildMainCard(BuildContext context) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            // الكلمة بالإنجليزية
-            Text(
-              widget.word.word,
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepPurple,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // النطق الصوتي مع زر التشغيل
-            if (widget.word.phonetic != null)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+  // AppBar مع صورة
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: widget.word.imageUrl != null ? 220 : 120,
+      pinned: true,
+      backgroundColor: Colors.deepPurple,
+      foregroundColor: Colors.white,
+      flexibleSpace: FlexibleSpaceBar(
+        title: Text(
+          widget.word.word,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
+          ),
+        ),
+        background: widget.word.imageUrl != null
+            ? Stack(
+                fit: StackFit.expand,
                 children: [
-                  Text(
-                    widget.word.phonetic!,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey[600],
+                  CachedNetworkImage(
+                    imageUrl: widget.word.imageUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: Colors.deepPurple.shade200,
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.deepPurple.shade200,
+                      child: const Icon(Icons.broken_image,
+                          size: 50, color: Colors.white54),
                     ),
                   ),
-                  if (widget.word.audioUrl != null &&
-                      widget.word.audioUrl!.isNotEmpty)
-                    IconButton(
-                      onPressed: _isPlaying ? null : _playAudio,
-                      icon: Icon(
-                        _isPlaying ? Icons.pause_circle : Icons.play_circle,
-                        color: Colors.deepPurple,
-                        size: 32,
+                  // تدرج لوني لقراءة النص
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.7),
+                        ],
                       ),
                     ),
+                  ),
                 ],
-              ),
-
-            // نوع الكلمة
-            if (widget.word.partOfSpeech != null)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
+              )
+            : Container(
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade100,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  widget.word.partOfSpeech!,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.deepPurple.shade700,
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.deepPurple.shade700,
+                      Colors.deepPurple.shade400,
+                    ],
                   ),
                 ),
               ),
+      ),
+    );
+  }
+
+  // بطاقة الكلمة الرئيسية
+  Widget _buildMainWordCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            // النطق الصوتي مع زر التشغيل
+            if (widget.word.phonetic != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.shade50,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.word.phonetic!,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.deepPurple.shade700,
+                      ),
+                    ),
+                    if (widget.word.audioUrl != null &&
+                        widget.word.audioUrl!.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _isPlaying ? null : _playAudio,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _isPlaying
+                                ? Icons.pause
+                                : Icons.volume_up_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+            // أنواع الكلمة
+            if (widget.word.allPartsOfSpeech != null) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                children: widget.word.allPartsOfSpeech!
+                    .split(',')
+                    .where((s) => s.trim().isNotEmpty)
+                    .map((pos) {
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getPartOfSpeechColor(pos.trim()).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color:
+                            _getPartOfSpeechColor(pos.trim()).withOpacity(0.5),
+                      ),
+                    ),
+                    child: Text(
+                      pos.trim(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _getPartOfSpeechColor(pos.trim()),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
 
             const Divider(height: 32),
 
             // الترجمة بالعربية
-            const Text(
-              'الترجمة',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.word.translation,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.translate,
+                          size: 18, color: Colors.green.shade600),
+                      const SizedBox(width: 8),
+                      Text(
+                        'الترجمة',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.green.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.word.translation,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              textDirection: TextDirection.rtl,
             ),
           ],
         ),
@@ -215,10 +291,12 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     );
   }
 
-  // بطاقة التعريف
-  Widget _buildDefinitionCard() {
+  // بطاقة التعريفات
+  Widget _buildDefinitionsCard() {
+    final definitions = widget.word.definitionsList;
     return Card(
-      elevation: 2,
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -226,34 +304,81 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.menu_book, color: Colors.deepPurple.shade300),
-                const SizedBox(width: 8),
-                const Text(
-                  'Definition',
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child:
+                      Icon(Icons.menu_book, color: Colors.blue.shade600, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'التعريفات (Definitions)',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
+                    color: Colors.blue.shade700,
                   ),
                 ),
               ],
             ),
-            const Divider(),
-            Text(
-              widget.word.definition!,
-              style: const TextStyle(fontSize: 15, height: 1.5),
-              textDirection: TextDirection.ltr,
-            ),
+            const Divider(height: 20),
+            if (definitions.isNotEmpty)
+              ...definitions.take(5).asMap().entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${entry.key + 1}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          entry.value,
+                          style: const TextStyle(fontSize: 14, height: 1.5),
+                          textDirection: TextDirection.ltr,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              })
+            else if (widget.word.definition != null)
+              Text(
+                widget.word.definition!,
+                style: const TextStyle(fontSize: 14, height: 1.5),
+                textDirection: TextDirection.ltr,
+              ),
           ],
         ),
       ),
     );
   }
 
-  // بطاقة المثال
-  Widget _buildExampleCard() {
+  // بطاقة الأمثلة
+  Widget _buildExamplesCard() {
+    final examples = widget.word.examplesList;
     return Card(
-      elevation: 2,
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: Colors.amber.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -262,28 +387,180 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.format_quote, color: Colors.amber.shade700),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.format_quote,
+                      color: Colors.amber.shade700, size: 20),
+                ),
+                const SizedBox(width: 10),
                 Text(
-                  'Example',
+                  'أمثلة (Examples)',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade700,
+                    color: Colors.amber.shade800,
                   ),
                 ),
               ],
             ),
-            const Divider(),
-            Text(
-              '"${widget.word.example!}"',
-              style: const TextStyle(
-                fontSize: 15,
-                fontStyle: FontStyle.italic,
-                height: 1.5,
+            const Divider(height: 20),
+            ...examples.take(5).map((example) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.arrow_forward_ios,
+                        size: 12, color: Colors.amber.shade600),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '"$example"',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey.shade800,
+                          height: 1.4,
+                        ),
+                        textDirection: TextDirection.ltr,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // بطاقة المرادفات والأضداد
+  Widget _buildSynonymsAntonymsCard() {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // المرادفات
+            if (widget.word.synonymsList.isNotEmpty) ...[
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.compare_arrows,
+                        color: Colors.teal.shade600, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'المرادفات (Synonyms)',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal.shade700,
+                    ),
+                  ),
+                ],
               ),
-              textDirection: TextDirection.ltr,
-            ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.word.synonymsList.take(10).map((s) {
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.teal.shade200),
+                    ),
+                    child: Text(
+                      s.trim(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.teal.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+
+            if (widget.word.synonymsList.isNotEmpty &&
+                widget.word.antonymsList.isNotEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Divider(height: 1),
+              ),
+
+            // الأضداد
+            if (widget.word.antonymsList.isNotEmpty) ...[
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.swap_horiz,
+                        color: Colors.red.shade600, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'الأضداد (Antonyms)',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.word.antonymsList.take(10).map((a) {
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Text(
+                      a.trim(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ),
       ),
@@ -292,30 +569,47 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
 
   // بطاقة التاريخ
   Widget _buildDateCard() {
-    return Card(
-      elevation: 1,
-      color: Colors.grey.shade100,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-            const SizedBox(width: 8),
-            Text(
-              'تمت الإضافة: ${_formatDate(widget.word.createdAt)}',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          Text(
+            'تمت الإضافة: ${_formatDate(widget.word.createdAt)}',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[600],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   String _formatDate(DateTime date) {
     return '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+  }
+
+  Color _getPartOfSpeechColor(String partOfSpeech) {
+    switch (partOfSpeech.toLowerCase().trim()) {
+      case 'noun':
+        return Colors.blue.shade700;
+      case 'verb':
+        return Colors.green.shade700;
+      case 'adjective':
+        return Colors.orange.shade700;
+      case 'adverb':
+        return Colors.purple.shade700;
+      case 'interjection':
+        return Colors.pink.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
   }
 }

@@ -1,74 +1,139 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-/// نتيجة البحث في القاموس
-class DictionaryResult {
-  final String word;
-  final String? definition;
+/// تعريف واحد للكلمة
+class WordDefinition {
+  final String definition;
   final String? example;
-  final String? phonetic;
-  final String? audioUrl;
-  final String? partOfSpeech;
 
-  DictionaryResult({
-    required this.word,
-    this.definition,
-    this.example,
-    this.phonetic,
-    this.audioUrl,
-    this.partOfSpeech,
+  WordDefinition({required this.definition, this.example});
+}
+
+/// معنى واحد (يحتوي على نوع الكلمة + عدة تعريفات)
+class WordMeaning {
+  final String partOfSpeech;
+  final List<WordDefinition> definitions;
+  final List<String> synonyms;
+  final List<String> antonyms;
+
+  WordMeaning({
+    required this.partOfSpeech,
+    required this.definitions,
+    required this.synonyms,
+    required this.antonyms,
   });
 }
 
-//Get word definitions
-// Usage : The basic syntax of a URL request to the API is shown below:
-//
-// https://api.dictionaryapi.dev/api/v2/entries/en/<word>
-//
-// As an example, to get definition of English word hello, you can send request to
-//
-// https://api.dictionaryapi.dev/api/v2/entries/en/hello
-/// خدمة القاموس - تستخدم Free Dictionary API
+/// نتيجة البحث الكاملة في القاموس
+class DictionaryResult {
+  final String word;
+  final String? phonetic;
+  final String? audioUrl;
+  final List<WordMeaning> meanings;
+  final List<String> allSynonyms; // جميع المرادفات مجمعة
+  final List<String> allAntonyms; // جميع الأضداد مجمعة
+
+  DictionaryResult({
+    required this.word,
+    this.phonetic,
+    this.audioUrl,
+    required this.meanings,
+    required this.allSynonyms,
+    required this.allAntonyms,
+  });
+
+  /// أول تعريف متوفر
+  String? get firstDefinition {
+    for (final meaning in meanings) {
+      if (meaning.definitions.isNotEmpty) {
+        return meaning.definitions[0].definition;
+      }
+    }
+    return null;
+  }
+
+  /// أول مثال متوفر
+  String? get firstExample {
+    for (final meaning in meanings) {
+      for (final def in meaning.definitions) {
+        if (def.example != null && def.example!.isNotEmpty) {
+          return def.example;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// أول نوع كلمة متوفر
+  String? get firstPartOfSpeech {
+    if (meanings.isNotEmpty) return meanings[0].partOfSpeech;
+    return null;
+  }
+
+  /// جميع الأمثلة
+  List<String> get allExamples {
+    final examples = <String>[];
+    for (final meaning in meanings) {
+      for (final def in meaning.definitions) {
+        if (def.example != null && def.example!.isNotEmpty) {
+          examples.add(def.example!);
+        }
+      }
+    }
+    return examples;
+  }
+
+  /// جميع التعريفات كنص واحد
+  String get allDefinitionsText {
+    final defs = <String>[];
+    for (final meaning in meanings) {
+      for (final def in meaning.definitions) {
+        defs.add(def.definition);
+      }
+    }
+    return defs.join('\n');
+  }
+}
+
+// =============================================================
+// خدمة القاموس - تستخدم Free Dictionary API
+// URL: https://api.dictionaryapi.dev/api/v2/entries/en/<word>
+// =============================================================
 class DictionaryService {
   static const String _baseUrl =
       'https://api.dictionaryapi.dev/api/v2/entries/en';
 
   /// البحث عن كلمة في القاموس
-  /// يُرجع DictionaryResult إذا وُجدت الكلمة، أو null إذا لم تُوجد
   static Future<DictionaryResult?> lookupWord(String word) async {
     try {
       final cleanWord = word.trim().toLowerCase();
       final url = Uri.parse('$_baseUrl/$cleanWord');
       final response = await http.get(url).timeout(
-        const Duration(seconds: 10),
-      );
+            const Duration(seconds: 10),
+          );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return _parseResponse(data);
       } else if (response.statusCode == 404) {
-        // الكلمة غير موجودة في القاموس
         return null;
       } else {
-        // خطأ في الخادم
         return null;
       }
     } catch (e) {
-      // خطأ في الاتصال (لا يوجد إنترنت مثلاً)
-      // طباعة الخطأ للتصحيح
       print('DictionaryService Error: $e');
       return null;
     }
   }
 
-  /// تحليل استجابة API واستخراج البيانات المطلوبة
+  /// تحليل استجابة API الكاملة
   static DictionaryResult _parseResponse(List<dynamic> data) {
     final entry = data[0] as Map<String, dynamic>;
 
     // استخراج الكلمة
     final word = entry['word'] as String;
 
-    // استخراج النطق الصوتي (phonetic)
+    // استخراج النطق الصوتي
     String? phonetic;
     String? audioUrl;
 
@@ -76,68 +141,95 @@ class DictionaryService {
       final phonetics = entry['phonetics'] as List;
       for (final p in phonetics) {
         if (p is Map<String, dynamic>) {
-          // أخذ أول phonetic text متوفر
-          if (phonetic == null && p['text'] != null && p['text'].toString().isNotEmpty) {
+          if (phonetic == null &&
+              p['text'] != null &&
+              p['text'].toString().isNotEmpty) {
             phonetic = p['text'] as String;
           }
-          // أخذ أول audio URL متوفر
-          if (audioUrl == null && p['audio'] != null && p['audio'].toString().isNotEmpty) {
+          if (audioUrl == null &&
+              p['audio'] != null &&
+              p['audio'].toString().isNotEmpty) {
             audioUrl = p['audio'] as String;
           }
         }
       }
     }
 
-    // إذا لم نجد phonetic من القائمة، نأخذه من الحقل المباشر
-    if (phonetic == null && entry.containsKey('phonetic') && entry['phonetic'] != null) {
+    if (phonetic == null &&
+        entry.containsKey('phonetic') &&
+        entry['phonetic'] != null) {
       phonetic = entry['phonetic'] as String;
     }
 
-    // استخراج المعنى والمثال ونوع الكلمة
-    String? definition;
-    String? example;
-    String? partOfSpeech;
+    // استخراج جميع المعاني
+    final meanings = <WordMeaning>[];
+    final allSynonyms = <String>{};
+    final allAntonyms = <String>{};
 
     if (entry.containsKey('meanings') && entry['meanings'] is List) {
-      final meanings = entry['meanings'] as List;
-      if (meanings.isNotEmpty) {
-        final firstMeaning = meanings[0] as Map<String, dynamic>;
+      final meaningsData = entry['meanings'] as List;
 
-        // نوع الكلمة
-        partOfSpeech = firstMeaning['partOfSpeech'] as String?;
+      for (final meaningData in meaningsData) {
+        if (meaningData is Map<String, dynamic>) {
+          final partOfSpeech =
+              meaningData['partOfSpeech'] as String? ?? 'unknown';
 
-        // التعريف والمثال
-        if (firstMeaning.containsKey('definitions') &&
-            firstMeaning['definitions'] is List) {
-          final definitions = firstMeaning['definitions'] as List;
-          if (definitions.isNotEmpty) {
-            final firstDef = definitions[0] as Map<String, dynamic>;
-            definition = firstDef['definition'] as String?;
-            example = firstDef['example'] as String?;
-          }
-
-          // إذا لم يكن هناك مثال في التعريف الأول، نبحث في البقية
-          if (example == null) {
-            for (final def in definitions) {
-              if (def is Map<String, dynamic> &&
-                  def['example'] != null &&
-                  def['example'].toString().isNotEmpty) {
-                example = def['example'] as String;
-                break;
+          // استخراج التعريفات
+          final definitions = <WordDefinition>[];
+          if (meaningData.containsKey('definitions') &&
+              meaningData['definitions'] is List) {
+            final defsData = meaningData['definitions'] as List;
+            for (final defData in defsData) {
+              if (defData is Map<String, dynamic>) {
+                definitions.add(WordDefinition(
+                  definition: defData['definition'] as String? ?? '',
+                  example: defData['example'] as String?,
+                ));
               }
             }
           }
+
+          // استخراج المرادفات على مستوى المعنى
+          final synonyms = <String>[];
+          if (meaningData.containsKey('synonyms') &&
+              meaningData['synonyms'] is List) {
+            for (final s in meaningData['synonyms'] as List) {
+              if (s is String && s.isNotEmpty) {
+                synonyms.add(s);
+                allSynonyms.add(s);
+              }
+            }
+          }
+
+          // استخراج الأضداد على مستوى المعنى
+          final antonyms = <String>[];
+          if (meaningData.containsKey('antonyms') &&
+              meaningData['antonyms'] is List) {
+            for (final a in meaningData['antonyms'] as List) {
+              if (a is String && a.isNotEmpty) {
+                antonyms.add(a);
+                allAntonyms.add(a);
+              }
+            }
+          }
+
+          meanings.add(WordMeaning(
+            partOfSpeech: partOfSpeech,
+            definitions: definitions,
+            synonyms: synonyms,
+            antonyms: antonyms,
+          ));
         }
       }
     }
 
     return DictionaryResult(
       word: word,
-      definition: definition,
-      example: example,
       phonetic: phonetic,
       audioUrl: audioUrl,
-      partOfSpeech: partOfSpeech,
+      meanings: meanings,
+      allSynonyms: allSynonyms.toList(),
+      allAntonyms: allAntonyms.toList(),
     );
   }
 }
