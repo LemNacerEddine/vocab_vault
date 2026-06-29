@@ -326,7 +326,7 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
             ),
             const Divider(height: 20),
             if (definitions.isNotEmpty)
-              ...definitions.take(5).asMap().entries.map((entry) {
+              ...definitions.take(5).toList().asMap().entries.map((entry) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
