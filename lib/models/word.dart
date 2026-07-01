@@ -12,6 +12,9 @@ class Word {
   final String? allPartsOfSpeech; // جميع أنواع الكلمة
   final String? synonyms; // المرادفات (مفصولة بفاصلة)
   final String? antonyms; // الأضداد (مفصولة بفاصلة)
+  final String? rootWord; // الكلمة الجذر (مفرد/مصدر) إذا كانت الكلمة جمعاً أو متصرفة
+  final String? formTypeLabel; // وصف نوع التصريف (صيغة الجمع، فعل ماضي...)
+  final String? inputFormExamples; // أمثلة الصيغة المدخلة (مفصولة بـ \n)
   final String? imageUrl; // رابط صورة توضيحية من Unsplash
   final String? imageDescription; // وصف الصورة
   final String? allImageUrls; // جميع روابط الصور (مفصولة بـ |)
@@ -31,6 +34,9 @@ class Word {
     this.allPartsOfSpeech,
     this.synonyms,
     this.antonyms,
+    this.rootWord,
+    this.formTypeLabel,
+    this.inputFormExamples,
     this.imageUrl,
     this.imageDescription,
     this.allImageUrls,
@@ -54,6 +60,18 @@ class Word {
       allDefinitions?.split('\n').where((s) => s.trim().isNotEmpty).toList() ??
       [];
 
+  // تحويل أمثلة الصيغة المدخلة من نص إلى قائمة
+  List<String> get inputFormExamplesList =>
+      inputFormExamples?.split('\n').where((s) => s.trim().isNotEmpty).toList() ?? [];
+
+  // جميع الأمثلة مدمجة (من الجذر + من الصيغة المدخلة)
+  List<String> get allExamplesMerged {
+    final all = <String>{};
+    all.addAll(examplesList);
+    all.addAll(inputFormExamplesList);
+    return all.toList();
+  }
+
   // تحويل جميع روابط الصور من نص إلى قائمة
   List<String> get imageUrlsList =>
       allImageUrls?.split('|').where((s) => s.trim().isNotEmpty).toList() ?? [];
@@ -74,6 +92,9 @@ class Word {
       'allPartsOfSpeech': allPartsOfSpeech,
       'synonyms': synonyms,
       'antonyms': antonyms,
+      'rootWord': rootWord,
+      'formTypeLabel': formTypeLabel,
+      'inputFormExamples': inputFormExamples,
       'imageUrl': imageUrl,
       'imageDescription': imageDescription,
       'allImageUrls': allImageUrls,
@@ -97,6 +118,9 @@ class Word {
       allPartsOfSpeech: map['allPartsOfSpeech'] as String?,
       synonyms: map['synonyms'] as String?,
       antonyms: map['antonyms'] as String?,
+      rootWord: map['rootWord'] as String?,
+      formTypeLabel: map['formTypeLabel'] as String?,
+      inputFormExamples: map['inputFormExamples'] as String?,
       imageUrl: map['imageUrl'] as String?,
       imageDescription: map['imageDescription'] as String?,
       allImageUrls: map['allImageUrls'] as String?,
@@ -119,6 +143,9 @@ class Word {
     String? allPartsOfSpeech,
     String? synonyms,
     String? antonyms,
+    String? rootWord,
+    String? formTypeLabel,
+    String? inputFormExamples,
     String? imageUrl,
     String? imageDescription,
     String? allImageUrls,
@@ -138,6 +165,9 @@ class Word {
       allPartsOfSpeech: allPartsOfSpeech ?? this.allPartsOfSpeech,
       synonyms: synonyms ?? this.synonyms,
       antonyms: antonyms ?? this.antonyms,
+      rootWord: rootWord ?? this.rootWord,
+      formTypeLabel: formTypeLabel ?? this.formTypeLabel,
+      inputFormExamples: inputFormExamples ?? this.inputFormExamples,
       imageUrl: imageUrl ?? this.imageUrl,
       imageDescription: imageDescription ?? this.imageDescription,
       allImageUrls: allImageUrls ?? this.allImageUrls,

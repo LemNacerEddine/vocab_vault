@@ -107,6 +107,11 @@ class _AddWordScreenState extends State<AddWordScreen> {
           _dictionaryResult?.meanings.map((m) => m.partOfSpeech).join(', '),
       synonyms: _dictionaryResult?.allSynonyms.join(','),
       antonyms: _dictionaryResult?.allAntonyms.join(','),
+      rootWord: _dictionaryResult?.rootWord,
+      formTypeLabel: _dictionaryResult?.formTypeLabel,
+      inputFormExamples: _dictionaryResult?.inputFormExamples.isNotEmpty == true
+          ? _dictionaryResult!.inputFormExamples.join('\n')
+          : null,
       imageUrl: _selectedImage?.regularUrl,
       imageDescription: _selectedImage?.description,
       allImageUrls: _images.isNotEmpty
@@ -287,6 +292,76 @@ class _AddWordScreenState extends State<AddWordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
+            // بطاقة تنبيه الجذر (تظهر فقط إذا كانت الكلمة جمعاً أو متصرفة)
+            if (result.isModifiedForm && result.rootWord != null) ...[  
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 18, color: Colors.orange.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'تم الكشف عن صيغة: ${result.formTypeLabel ?? ''}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.orange.shade900),
+                        children: [
+                          const TextSpan(text: 'الكلمة المدخلة «'),
+                          TextSpan(
+                            text: result.word,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontStyle: FontStyle.italic),
+                          ),
+                          const TextSpan(text: '» هي '),
+                          TextSpan(
+                            text: result.formTypeLabel ?? '',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const TextSpan(text: ' لـ «'),
+                          TextSpan(
+                            text: result.rootWord!,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurple.shade700,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          const TextSpan(
+                              text:
+                                  '». تم جلب معلومات الكلمة الأصلية مع دمج أمثلتها.'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // العنوان
             Row(
               children: [
@@ -302,7 +377,9 @@ class _AddWordScreenState extends State<AddWordScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    result.word,
+                    result.rootWord != null && result.isModifiedForm
+                        ? '${result.rootWord!} (${result.word})'
+                        : result.word,
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,

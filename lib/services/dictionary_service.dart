@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'lemmatization_service.dart';
 
 /// تعريف واحد للكلمة
 class WordDefinition {
@@ -26,20 +27,29 @@ class WordMeaning {
 
 /// نتيجة البحث الكاملة في القاموس
 class DictionaryResult {
-  final String word;
+  final String word;           // الكلمة كما أدخلها المستخدم
+  final String? rootWord;      // الكلمة الجذر (المفرد/المصدر) إن وجدت
+  final bool isModifiedForm;   // هل الكلمة جمع أو متصرفة؟
+  final String? formTypeLabel; // وصف نوع التصريف (صيغة الجمع، فعل ماضٍ...)
   final String? phonetic;
   final String? audioUrl;
   final List<WordMeaning> meanings;
-  final List<String> allSynonyms; // جميع المرادفات مجمعة
-  final List<String> allAntonyms; // جميع الأضداد مجمعة
+  final List<String> allSynonyms;
+  final List<String> allAntonyms;
+  // أمثلة الكلمة المُدخلة (الجمع مثلاً)
+  final List<String> inputFormExamples;
 
   DictionaryResult({
     required this.word,
+    this.rootWord,
+    this.isModifiedForm = false,
+    this.formTypeLabel,
     this.phonetic,
     this.audioUrl,
     required this.meanings,
     required this.allSynonyms,
     required this.allAntonyms,
+    this.inputFormExamples = const [],
   });
 
   /// أول تعريف متوفر
@@ -70,15 +80,20 @@ class DictionaryResult {
     return null;
   }
 
-  /// جميع الأمثلة
+  /// جميع الأمثلة (من الجذر + من الصيغة المُدخلة)
   List<String> get allExamples {
     final examples = <String>[];
+    // أمثلة من الجذر
     for (final meaning in meanings) {
       for (final def in meaning.definitions) {
         if (def.example != null && def.example!.isNotEmpty) {
           examples.add(def.example!);
         }
       }
+    }
+    // أمثلة من الصيغة المُدخلة (الجمع مثلاً)
+    for (final ex in inputFormExamples) {
+      if (!examples.contains(ex)) examples.add(ex);
     }
     return examples;
   }
@@ -103,35 +118,148 @@ class DictionaryService {
   static const String _baseUrl =
       'https://api.dictionaryapi.dev/api/v2/entries/en';
 
-  /// البحث عن كلمة في القاموس
+  /// البحث الذكي عن كلمة:
+  /// 1. يحاول البحث بالكلمة كما هي
+  /// 2. إذا فشل، يكتشف الجذر (مفرد/مصدر) ويبحث عنه
+  /// 3. يدمج أمثلة الصيغتين معاً
   static Future<DictionaryResult?> lookupWord(String word) async {
+    final cleanWord = word.trim().toLowerCase();
+
+    // أولاً: حاول البحث بالكلمة كما هي
+    final directResult = await _fetchWord(cleanWord);
+
+    if (directResult != null) {
+      // الكلمة وُجدت مباشرة - تحقق إذا كانت جمعاً أو متصرفة
+      final lemma = LemmatizationService.analyze(cleanWord);
+      if (lemma.isModified && lemma.rootWord != cleanWord) {
+        // الكلمة موجودة لكنها جمع أو متصرفة - نضيف معلومات الجذر
+        final rootResult = await _fetchWord(lemma.rootWord);
+        if (rootResult != null) {
+          return _mergeResults(
+            inputWord: cleanWord,
+            inputResult: directResult,
+            rootResult: rootResult,
+            lemma: lemma,
+          );
+        }
+        // إذا لم يوجد الجذر، أعد النتيجة المباشرة مع تمييز الصيغة
+        return DictionaryResult(
+          word: cleanWord,
+          rootWord: lemma.rootWord,
+          isModifiedForm: true,
+          formTypeLabel: lemma.formTypeDescription,
+          phonetic: directResult.phonetic,
+          audioUrl: directResult.audioUrl,
+          meanings: directResult.meanings,
+          allSynonyms: directResult.allSynonyms,
+          allAntonyms: directResult.allAntonyms,
+        );
+      }
+      return directResult;
+    }
+
+    // ثانياً: الكلمة لم توجد - حاول إيجاد الجذر
+    final lemma = LemmatizationService.analyze(cleanWord);
+    if (lemma.isModified) {
+      // جرب الجذر الأول
+      final rootResult = await _fetchWord(lemma.rootWord);
+      if (rootResult != null) {
+        return DictionaryResult(
+          word: cleanWord,
+          rootWord: lemma.rootWord,
+          isModifiedForm: true,
+          formTypeLabel: lemma.formTypeDescription,
+          phonetic: rootResult.phonetic,
+          audioUrl: rootResult.audioUrl,
+          meanings: rootResult.meanings,
+          allSynonyms: rootResult.allSynonyms,
+          allAntonyms: rootResult.allAntonyms,
+        );
+      }
+
+      // جرب الجذر البديل إن وجد
+      if (lemma.altRoot != null) {
+        final altResult = await _fetchWord(lemma.altRoot!);
+        if (altResult != null) {
+          return DictionaryResult(
+            word: cleanWord,
+            rootWord: lemma.altRoot,
+            isModifiedForm: true,
+            formTypeLabel: lemma.formTypeDescription,
+            phonetic: altResult.phonetic,
+            audioUrl: altResult.audioUrl,
+            meanings: altResult.meanings,
+            allSynonyms: altResult.allSynonyms,
+            allAntonyms: altResult.allAntonyms,
+          );
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// دمج نتائج الكلمة المُدخلة مع نتائج الجذر
+  static DictionaryResult _mergeResults({
+    required String inputWord,
+    required DictionaryResult inputResult,
+    required DictionaryResult rootResult,
+    required LemmaResult lemma,
+  }) {
+    // أمثلة من الكلمة المُدخلة (الجمع مثلاً)
+    final inputExamples = inputResult.allExamples;
+
+    // دمج المرادفات والأضداد
+    final mergedSynonyms = <String>{
+      ...rootResult.allSynonyms,
+      ...inputResult.allSynonyms,
+    }.toList();
+    final mergedAntonyms = <String>{
+      ...rootResult.allAntonyms,
+      ...inputResult.allAntonyms,
+    }.toList();
+
+    return DictionaryResult(
+      word: inputWord,
+      rootWord: lemma.rootWord,
+      isModifiedForm: true,
+      formTypeLabel: lemma.formTypeDescription,
+      // الصوت والنطق من الجذر (أوضح وأكثر توفراً)
+      phonetic: rootResult.phonetic ?? inputResult.phonetic,
+      audioUrl: rootResult.audioUrl ?? inputResult.audioUrl,
+      // المعاني من الجذر (أشمل)
+      meanings: rootResult.meanings,
+      allSynonyms: mergedSynonyms,
+      allAntonyms: mergedAntonyms,
+      // أمثلة الصيغة المُدخلة تُضاف كأمثلة إضافية
+      inputFormExamples: inputExamples,
+    );
+  }
+
+  /// جلب كلمة من API
+  static Future<DictionaryResult?> _fetchWord(String word) async {
     try {
-      final cleanWord = word.trim().toLowerCase();
-      final url = Uri.parse('$_baseUrl/$cleanWord');
+      final url = Uri.parse('$_baseUrl/$word');
       final response = await http.get(url).timeout(
             const Duration(seconds: 10),
           );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return _parseResponse(data);
-      } else if (response.statusCode == 404) {
-        return null;
-      } else {
-        return null;
+        return _parseResponse(data, word);
       }
+      return null;
     } catch (e) {
-      print('DictionaryService Error: $e');
+      print('DictionaryService Error for "$word": $e');
       return null;
     }
   }
 
   /// تحليل استجابة API الكاملة
-  static DictionaryResult _parseResponse(List<dynamic> data) {
+  static DictionaryResult _parseResponse(List<dynamic> data, String inputWord) {
     final entry = data[0] as Map<String, dynamic>;
 
-    // استخراج الكلمة
-    final word = entry['word'] as String;
+    final word = entry['word'] as String? ?? inputWord;
 
     // استخراج النطق الصوتي
     String? phonetic;
@@ -139,13 +267,12 @@ class DictionaryService {
 
     if (entry.containsKey('phonetics') && entry['phonetics'] is List) {
       final phonetics = entry['phonetics'] as List;
-      
-      // أولاً: البحث عن عنصر يحتوي على audio (الأهم)
+
+      // أولاً: البحث عن عنصر يحتوي على audio
       for (final p in phonetics) {
         if (p is Map<String, dynamic>) {
           if (p['audio'] != null && p['audio'].toString().isNotEmpty) {
             audioUrl = p['audio'] as String;
-            // إذا نفس العنصر يحتوي على text، نأخذه
             if (p['text'] != null && p['text'].toString().isNotEmpty) {
               phonetic = p['text'] as String;
             }
@@ -153,8 +280,8 @@ class DictionaryService {
           }
         }
       }
-      
-      // ثانياً: إذا لم نجد phonetic text بعد، نبحث في كل العناصر
+
+      // ثانياً: إذا لم نجد phonetic text، نبحث في كل العناصر
       if (phonetic == null) {
         for (final p in phonetics) {
           if (p is Map<String, dynamic>) {
@@ -167,7 +294,7 @@ class DictionaryService {
       }
     }
 
-    // ثالثاً: التحقق من حقل phonetic الرئيسي
+    // التحقق من حقل phonetic الرئيسي
     if (phonetic == null &&
         entry.containsKey('phonetic') &&
         entry['phonetic'] != null &&
@@ -188,7 +315,6 @@ class DictionaryService {
           final partOfSpeech =
               meaningData['partOfSpeech'] as String? ?? 'unknown';
 
-          // استخراج التعريفات
           final definitions = <WordDefinition>[];
           if (meaningData.containsKey('definitions') &&
               meaningData['definitions'] is List) {
@@ -199,11 +325,23 @@ class DictionaryService {
                   definition: defData['definition'] as String? ?? '',
                   example: defData['example'] as String?,
                 ));
+
+                // استخراج مرادفات وأضداد على مستوى التعريف
+                if (defData['synonyms'] is List) {
+                  for (final s in defData['synonyms'] as List) {
+                    if (s is String && s.isNotEmpty) allSynonyms.add(s);
+                  }
+                }
+                if (defData['antonyms'] is List) {
+                  for (final a in defData['antonyms'] as List) {
+                    if (a is String && a.isNotEmpty) allAntonyms.add(a);
+                  }
+                }
               }
             }
           }
 
-          // استخراج المرادفات على مستوى المعنى
+          // مرادفات وأضداد على مستوى المعنى
           final synonyms = <String>[];
           if (meaningData.containsKey('synonyms') &&
               meaningData['synonyms'] is List) {
@@ -215,7 +353,6 @@ class DictionaryService {
             }
           }
 
-          // استخراج الأضداد على مستوى المعنى
           final antonyms = <String>[];
           if (meaningData.containsKey('antonyms') &&
               meaningData['antonyms'] is List) {

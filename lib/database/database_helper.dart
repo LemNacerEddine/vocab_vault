@@ -20,7 +20,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -42,6 +42,9 @@ class DatabaseHelper {
         allPartsOfSpeech TEXT,
         synonyms TEXT,
         antonyms TEXT,
+        rootWord TEXT,
+        formTypeLabel TEXT,
+        inputFormExamples TEXT,
         imageUrl TEXT,
         imageDescription TEXT,
         allImageUrls TEXT,
@@ -71,6 +74,11 @@ class DatabaseHelper {
     }
     if (oldVersion < 5) {
       await db.execute('ALTER TABLE words ADD COLUMN allImageUrls TEXT');
+    }
+    if (oldVersion < 6) {
+      await db.execute('ALTER TABLE words ADD COLUMN rootWord TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN formTypeLabel TEXT');
+      await db.execute('ALTER TABLE words ADD COLUMN inputFormExamples TEXT');
     }
   }
 

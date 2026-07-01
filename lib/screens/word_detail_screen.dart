@@ -59,16 +59,20 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                   _buildMainWordCard(),
                   const SizedBox(height: 16),
 
+                  // بطاقة معلومات الجذر (تظهر فقط إذا كانت الكلمة جمعاً أو متصرفة)
+                  if (widget.word.rootWord != null) ...[  
+                    _buildRootWordCard(),
+                    const SizedBox(height: 16),
+                  ],
+
                   // بطاقة التعريفات
                   if (widget.word.definition != null) _buildDefinitionsCard(),
                   if (widget.word.definition != null) const SizedBox(height: 16),
 
-                  // بطاقة الأمثلة
-                  if (widget.word.allExamples != null &&
-                      widget.word.allExamples!.isNotEmpty)
+                  // بطاقة الأمثلة (تدمج أمثلة الجذر + أمثلة الصيغة المدخلة)
+                  if (widget.word.allExamplesMerged.isNotEmpty)
                     _buildExamplesCard(),
-                  if (widget.word.allExamples != null &&
-                      widget.word.allExamples!.isNotEmpty)
+                  if (widget.word.allExamplesMerged.isNotEmpty)
                     const SizedBox(height: 16),
 
                   // بطاقة المرادفات والأضداد
@@ -422,9 +426,78 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     );
   }
 
+  // بطاقة معلومات الجذر
+  Widget _buildRootWordCard() {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.orange.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.account_tree_outlined,
+                      color: Colors.orange.shade700, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'معلومات الصيغة',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+            RichText(
+              text: TextSpan(
+                style: TextStyle(fontSize: 14, color: Colors.orange.shade900, height: 1.6),
+                children: [
+                  TextSpan(
+                    text: widget.word.word,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontStyle: FontStyle.italic),
+                  ),
+                  const TextSpan(text: ' هي '),
+                  TextSpan(
+                    text: widget.word.formTypeLabel ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const TextSpan(text: ' لـ '),
+                  TextSpan(
+                    text: widget.word.rootWord!,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple.shade700,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const TextSpan(text: '. تم جلب معلومات الكلمة الأصلية مع دمج أمثلتها لتسهيل الحفظ.'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // بطاقة الأمثلة
   Widget _buildExamplesCard() {
-    final examples = widget.word.examplesList;
+    final rootExamples = widget.word.examplesList;
+    final inputFormExamples = widget.word.inputFormExamplesList;
+    final allExamples = widget.word.allExamplesMerged;
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -446,43 +519,68 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                       color: Colors.amber.shade700, size: 20),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  'أمثلة (Examples)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade800,
+                Expanded(
+                  child: Text(
+                    'أمثلة (Examples)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber.shade800,
+                    ),
+                  ),
+                ),
+                // عدد الأمثلة
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${allExamples.length}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber.shade800,
+                    ),
                   ),
                 ),
               ],
             ),
             const Divider(height: 20),
-            ...examples.take(5).map((example) {
+            ...allExamples.take(6).map((example) {
+              // هل هذا المثال من الصيغة المدخلة (الجمع مثلاً)؟
+              final isInputFormExample = inputFormExamples.contains(example);
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isInputFormExample ? Colors.blue.shade50 : Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.amber.shade200),
+                  border: Border.all(
+                    color: isInputFormExample ? Colors.blue.shade200 : Colors.amber.shade200,
+                  ),
                 ),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.arrow_forward_ios,
-                        size: 12, color: Colors.amber.shade600),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '"$example"',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.grey.shade800,
-                          height: 1.4,
-                        ),
-                        textDirection: TextDirection.ltr,
+                    if (isInputFormExample) ...[  
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 12, color: Colors.blue.shade600),
+                          const SizedBox(width: 4),
+                          Text(
+                            'مثال بالصيغة المدخلة (${widget.word.word})',
+                            style: TextStyle(fontSize: 10, color: Colors.blue.shade600),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 4),
+                    ],
+                    Text(
+                      example,
+                      style: const TextStyle(fontSize: 14, height: 1.5, fontStyle: FontStyle.italic),
+                      textDirection: TextDirection.ltr,
                     ),
                   ],
                 ),
