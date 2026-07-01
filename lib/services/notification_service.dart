@@ -103,6 +103,9 @@ class NotificationService {
       // وضع غير دقيق: لا يحتاج إذن التنبيهات الدقيقة (SCHEDULE_EXACT_ALARM)
       // وفارق الدقائق غير مهم لتذكير مراجعة.
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      // مطلوب في هذا الإصدار من flutter_local_notifications (iOS).
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
       // التكرار يومياً في نفس الساعة.
       matchDateTimeComponents: DateTimeComponents.time,
       payload: _payloadDueReview,
