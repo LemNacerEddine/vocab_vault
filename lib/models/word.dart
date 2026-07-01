@@ -1,3 +1,5 @@
+import 'quiz_pack.dart';
+
 class Word {
   final int? id;
   final String word;
@@ -18,6 +20,7 @@ class Word {
   final String? imageUrl; // رابط صورة توضيحية من Unsplash
   final String? imageDescription; // وصف الصورة
   final String? allImageUrls; // جميع روابط الصور (مفصولة بـ |)
+  final String? quizContent; // حزمة اختبار مُولّدة بالـ AI (JSON مُرمّز)
   final DateTime createdAt;
 
   Word({
@@ -40,6 +43,7 @@ class Word {
     this.imageUrl,
     this.imageDescription,
     this.allImageUrls,
+    this.quizContent,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -76,6 +80,9 @@ class Word {
   List<String> get imageUrlsList =>
       allImageUrls?.split('|').where((s) => s.trim().isNotEmpty).toList() ?? [];
 
+  // فكّ حزمة الاختبار المُولّدة بالـ AI (null إن لم تُولَّد بعد)
+  QuizPack? get quizPack => QuizPack.tryDecode(quizContent);
+
   // تحويل الكلمة إلى Map لحفظها في قاعدة البيانات
   Map<String, dynamic> toMap() {
     return {
@@ -98,6 +105,7 @@ class Word {
       'imageUrl': imageUrl,
       'imageDescription': imageDescription,
       'allImageUrls': allImageUrls,
+      'quizContent': quizContent,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -124,6 +132,7 @@ class Word {
       imageUrl: map['imageUrl'] as String?,
       imageDescription: map['imageDescription'] as String?,
       allImageUrls: map['allImageUrls'] as String?,
+      quizContent: map['quizContent'] as String?,
       createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
@@ -149,6 +158,7 @@ class Word {
     String? imageUrl,
     String? imageDescription,
     String? allImageUrls,
+    String? quizContent,
     DateTime? createdAt,
   }) {
     return Word(
@@ -171,6 +181,7 @@ class Word {
       imageUrl: imageUrl ?? this.imageUrl,
       imageDescription: imageDescription ?? this.imageDescription,
       allImageUrls: allImageUrls ?? this.allImageUrls,
+      quizContent: quizContent ?? this.quizContent,
       createdAt: createdAt ?? this.createdAt,
     );
   }

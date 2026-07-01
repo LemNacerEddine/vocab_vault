@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/word.dart';
+import '../database/database_helper.dart';
+import '../services/claude_service.dart';
 
 class WordDetailScreen extends StatefulWidget {
   final Word word;
@@ -15,11 +17,41 @@ class WordDetailScreen extends StatefulWidget {
 class _WordDetailScreenState extends State<WordDetailScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
+  bool _isGeneratingQuiz = false;
+  late bool _hasQuizContent =
+      widget.word.quizContent != null && widget.word.quizContent!.isNotEmpty;
 
   @override
   void dispose() {
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  // توليد حزمة أسئلة ذكية بالـ AI لكلمة موجودة (عند الطلب).
+  Future<void> _generateQuiz() async {
+    if (widget.word.id == null) return;
+    setState(() => _isGeneratingQuiz = true);
+    final pack = await ClaudeService.generateQuizPack(widget.word);
+    if (pack != null) {
+      await DatabaseHelper.instance.updateWord(
+        widget.word.copyWith(quizContent: pack.encode()),
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _isGeneratingQuiz = false;
+      _hasQuizContent = pack != null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          pack != null
+              ? 'تم توليد أسئلة ذكية لهذه الكلمة ✓'
+              : 'تعذّر توليد الأسئلة. تحقق من المفتاح والاتصال.',
+        ),
+        backgroundColor: pack != null ? Colors.green : Colors.red.shade400,
+      ),
+    );
   }
 
   Future<void> _playAudio() async {
@@ -112,6 +144,26 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
       pinned: true,
       backgroundColor: Colors.deepPurple,
       foregroundColor: Colors.white,
+      actions: [
+        if (ClaudeService.isEnabled && !_hasQuizContent)
+          _isGeneratingQuiz
+              ? const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.auto_awesome),
+                  tooltip: 'توليد أسئلة ذكية',
+                  onPressed: _generateQuiz,
+                ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         title: Text(
           widget.word.word,

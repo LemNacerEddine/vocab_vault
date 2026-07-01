@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/word.dart';
+import '../models/word_progress.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -20,7 +21,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -48,7 +49,25 @@ class DatabaseHelper {
         imageUrl TEXT,
         imageDescription TEXT,
         allImageUrls TEXT,
+        quizContent TEXT,
         createdAt TEXT NOT NULL
+      )
+    ''');
+    await _createProgressTable(db);
+  }
+
+  Future<void> _createProgressTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE word_progress (
+        wordId INTEGER PRIMARY KEY,
+        interval INTEGER DEFAULT 0,
+        repetition INTEGER DEFAULT 0,
+        easeFactor REAL DEFAULT 2.5,
+        nextReviewDate TEXT,
+        lastReviewDate TEXT,
+        totalAttempts INTEGER DEFAULT 0,
+        correctAttempts INTEGER DEFAULT 0,
+        FOREIGN KEY (wordId) REFERENCES words(id) ON DELETE CASCADE
       )
     ''');
   }
@@ -79,6 +98,10 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE words ADD COLUMN rootWord TEXT');
       await db.execute('ALTER TABLE words ADD COLUMN formTypeLabel TEXT');
       await db.execute('ALTER TABLE words ADD COLUMN inputFormExamples TEXT');
+    }
+    if (oldVersion < 7) {
+      await db.execute('ALTER TABLE words ADD COLUMN quizContent TEXT');
+      await _createProgressTable(db);
     }
   }
 
@@ -139,6 +162,67 @@ class DatabaseHelper {
       whereArgs: [word.toLowerCase()],
     );
     return result.isNotEmpty;
+  }
+
+  // ==================== تقدّم التعلّم (SM-2) ====================
+
+  /// سجل التقدّم لكلمة، أو null إن لم تُراجَع بعد.
+  Future<WordProgress?> getProgress(int wordId) async {
+    final db = await database;
+    final result = await db.query(
+      'word_progress',
+      where: 'wordId = ?',
+      whereArgs: [wordId],
+    );
+    if (result.isEmpty) return null;
+    return WordProgress.fromMap(result.first);
+  }
+
+  /// إدراج أو تحديث سجل التقدّم.
+  Future<void> upsertProgress(WordProgress progress) async {
+    final db = await database;
+    await db.insert(
+      'word_progress',
+      progress.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// جميع الكلمات المستحقّة للمراجعة الآن:
+  /// كلمات بلا سجل تقدّم (جديدة) + كلمات حان موعد مراجعتها.
+  /// مرتّبة: المستحقّة الأقدم أولاً، ثم الكلمات الجديدة.
+  Future<List<Word>> getDueWords() async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    final result = await db.rawQuery(
+      '''
+      SELECT w.* FROM words w
+      LEFT JOIN word_progress p ON p.wordId = w.id
+      WHERE p.wordId IS NULL
+         OR p.nextReviewDate IS NULL
+         OR p.nextReviewDate <= ?
+      ORDER BY (p.nextReviewDate IS NULL) ASC, p.nextReviewDate ASC, w.createdAt ASC
+      ''',
+      [now],
+    );
+    return result.map((map) => Word.fromMap(map)).toList();
+  }
+
+  /// عدد الكلمات المستحقّة للمراجعة الآن (للعرض على الشاشة الرئيسية).
+  Future<int> getDueCount() async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    final result = await db.rawQuery(
+      '''
+      SELECT COUNT(*) as count FROM words w
+      LEFT JOIN word_progress p ON p.wordId = w.id
+      WHERE p.wordId IS NULL
+         OR p.nextReviewDate IS NULL
+         OR p.nextReviewDate <= ?
+      ''',
+      [now],
+    );
+    return (result.first['count'] as int?) ?? 0;
   }
 
   Future<void> close() async {

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../database/database_helper.dart';
 import '../models/word.dart';
+import '../services/quiz_engine.dart';
+import '../utils/pos_category.dart';
 import 'add_word_screen.dart';
 import 'word_detail_screen.dart';
+import 'quiz_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +20,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Word> _filteredWords = [];
   bool _isLoading = true;
   bool _isSearching = false;
+  int _dueCount = 0;
+  String _searchQuery = '';
+  PosCategory? _selectedCategory; // null = الكل
   final _searchController = TextEditingController();
 
   @override
@@ -34,25 +40,69 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadWords() async {
     setState(() => _isLoading = true);
     final words = await DatabaseHelper.instance.getAllWords();
+    final dueCount = await DatabaseHelper.instance.getDueCount();
     setState(() {
       _words = words;
-      _filteredWords = words;
+      _dueCount = dueCount;
       _isLoading = false;
     });
+    _recomputeFiltered();
+  }
+
+  // إعادة حساب القائمة المعروضة وفق المجموعة المختارة ونص البحث معاً.
+  void _recomputeFiltered() {
+    var list = _words;
+    if (_selectedCategory != null) {
+      list = PosCategoryUtil.filter(list, _selectedCategory!);
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      list = list
+          .where((w) =>
+              w.word.toLowerCase().contains(q) ||
+              w.translation.contains(_searchQuery))
+          .toList();
+    }
+    setState(() => _filteredWords = list);
+  }
+
+  void _selectCategory(PosCategory? category) {
+    _selectedCategory = category;
+    _recomputeFiltered();
+  }
+
+  // بدء جلسة اختبار. [subset] لاختبار مجموعة محدّدة؛ وإلا الكلمات المستحقّة.
+  Future<void> _startQuiz({List<Word>? subset}) async {
+    final List<Word> source;
+    if (subset != null) {
+      source = subset;
+    } else {
+      source = await DatabaseHelper.instance.getDueWords();
+    }
+    final all =
+        _words.isNotEmpty ? _words : await DatabaseHelper.instance.getAllWords();
+    final questions = QuizEngine.buildSession(source, all);
+
+    if (!mounted) return;
+    if (questions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد كلمات كافية للاختبار الآن. أضف المزيد!'),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => QuizScreen(questions: questions)),
+    );
+    _loadWords();
   }
 
   void _filterWords(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredWords = _words;
-      } else {
-        _filteredWords = _words
-            .where((w) =>
-                w.word.toLowerCase().contains(query.toLowerCase()) ||
-                w.translation.contains(query))
-            .toList();
-      }
-    });
+    _searchQuery = query;
+    _recomputeFiltered();
   }
 
   Future<void> _deleteWord(Word word) async {
@@ -136,8 +186,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                   _isSearching = false;
                   _searchController.clear();
-                  _filteredWords = _words;
+                  _searchQuery = '';
                 });
+                _recomputeFiltered();
               },
             ),
         ],
@@ -161,6 +212,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       // شريط الإحصائيات
                       _buildStatsBar(),
+                      // زر بدء المراجعة
+                      _buildReviewBanner(),
+                      // تبويبات التصنيف (أسماء/أفعال/صفات)
+                      _buildCategoryChips(),
                       // قائمة الكلمات
                       Expanded(child: _buildWordList()),
                     ],
@@ -232,6 +287,114 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Colors.orange,
           ),
         ],
+      ),
+    );
+  }
+
+  // تبويبات تصنيف الكلمات حسب النوع (أسماء/أفعال/صفات/أخرى)
+  Widget _buildCategoryChips() {
+    // عدّ الكلمات لكل مجموعة.
+    final counts = <PosCategory, int>{};
+    for (final w in _words) {
+      final c = PosCategoryUtil.ofWord(w);
+      counts[c] = (counts[c] ?? 0) + 1;
+    }
+    // المجموعات التي بها كلمات فقط.
+    final present = PosCategory.values.where((c) => (counts[c] ?? 0) > 0);
+
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          _categoryChip(label: 'الكل (${_words.length})', category: null),
+          for (final c in present)
+            _categoryChip(
+              label: '${c.labelAr} (${counts[c]})',
+              category: c,
+            ),
+          if (_selectedCategory != null && _filteredWords.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: ActionChip(
+                avatar: const Icon(Icons.quiz, size: 18,
+                    color: Colors.deepPurple),
+                label: const Text('اختبر المجموعة'),
+                onPressed: () => _startQuiz(subset: _filteredWords),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryChip({required String label, required PosCategory? category}) {
+    final selected = _selectedCategory == category;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: selected,
+        selectedColor: Colors.deepPurple,
+        labelStyle: TextStyle(
+          color: selected ? Colors.white : Colors.deepPurple.shade700,
+          fontWeight: FontWeight.w500,
+        ),
+        backgroundColor: Colors.white,
+        side: BorderSide(color: Colors.deepPurple.shade100),
+        onSelected: (_) => _selectCategory(category),
+      ),
+    );
+  }
+
+  // بطاقة بدء جلسة المراجعة
+  Widget _buildReviewBanner() {
+    final hasDue = _dueCount > 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Material(
+        color: hasDue ? Colors.deepPurple : Colors.deepPurple.shade200,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: _startQuiz,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                const Icon(Icons.psychology_alt, color: Colors.white, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'ابدأ المراجعة',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        hasDue
+                            ? '$_dueCount كلمة مستحقّة للمراجعة اليوم'
+                            : 'راجع كلماتك بأسئلة متنوّعة',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.play_circle_fill,
+                    color: Colors.white, size: 30),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

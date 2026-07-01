@@ -5,6 +5,7 @@ import '../models/word.dart';
 import '../services/dictionary_service.dart';
 import '../services/unsplash_service.dart';
 import '../services/translation_service.dart';
+import '../services/claude_service.dart';
 
 class AddWordScreen extends StatefulWidget {
   const AddWordScreen({super.key});
@@ -119,7 +120,14 @@ class _AddWordScreenState extends State<AddWordScreen> {
           : null,
     );
 
-    await DatabaseHelper.instance.insertWord(word);
+    // توليد حزمة أسئلة ذكية بالـ AI (إن توفّر المفتاح). غير حاجب: عند الفشل
+    // أو غياب المفتاح تُحفظ الكلمة بلا حزمة ويعمل المحرّك بـ fallback محلي.
+    final quizPack = await ClaudeService.generateQuizPack(word);
+    final wordToSave = quizPack != null
+        ? word.copyWith(quizContent: quizPack.encode())
+        : word;
+
+    await DatabaseHelper.instance.insertWord(wordToSave);
 
     setState(() => _isSaving = false);
 
