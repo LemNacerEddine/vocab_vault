@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:audioplayers/audioplayers.dart';
+import '../models/quiz_pack.dart';
 import '../models/word.dart';
 import '../database/database_helper.dart';
-import '../services/claude_service.dart';
+import '../services/local_question_generator_service.dart';
+import '../services/quiz_validation_service.dart';
 
 class WordDetailScreen extends StatefulWidget {
   final Word word;
@@ -27,16 +29,29 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     super.dispose();
   }
 
-  // توليد حزمة أسئلة ذكية بالـ AI لكلمة موجودة (عند الطلب).
-  Future<void> _generateQuiz() async {
+  // إعادة توليد أسئلة الاختبار محلياً (بدون أي ذكاء اصطناعي). مفيدة لكلمات
+  // قديمة لا تملك حزمة أسئلة، أو لتحديث البدائل بعد إضافة كلمات جديدة
+  // تُثري مصدر البدائل.
+  Future<void> _regenerateQuiz() async {
     if (widget.word.id == null) return;
     setState(() => _isGeneratingQuiz = true);
-    final pack = await ClaudeService.generateQuizPack(widget.word);
-    if (pack != null) {
+
+    final allWords = await DatabaseHelper.instance.getAllWords();
+    final questions = LocalQuestionGeneratorService.generateQuestionsForWord(
+      word: widget.word,
+      dictionary: null,
+      allWords: allWords,
+      cachedDictionaries: const [],
+    ).where(QuizValidationService.isValidQuestion).toList();
+
+    QuizPack? pack;
+    if (questions.isNotEmpty) {
+      pack = QuizPack(questions: questions);
       await DatabaseHelper.instance.updateWord(
         widget.word.copyWith(quizContent: pack.encode()),
       );
     }
+
     if (!mounted) return;
     setState(() {
       _isGeneratingQuiz = false;
@@ -46,10 +61,10 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
       SnackBar(
         content: Text(
           pack != null
-              ? 'تم توليد أسئلة ذكية لهذه الكلمة ✓'
-              : 'تعذّر توليد الأسئلة. تحقق من المفتاح والاتصال.',
+              ? 'تم توليد ${questions.length} سؤال لهذه الكلمة ✓'
+              : 'تعذّر توليد أسئلة كافية (بيانات الكلمة غير كافية).',
         ),
-        backgroundColor: pack != null ? Colors.green : Colors.red.shade400,
+        backgroundColor: pack != null ? Colors.green : Colors.orange.shade400,
       ),
     );
   }
@@ -145,24 +160,23 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
       backgroundColor: Colors.deepPurple,
       foregroundColor: Colors.white,
       actions: [
-        if (ClaudeService.isEnabled && !_hasQuizContent)
-          _isGeneratingQuiz
-              ? const Padding(
-                  padding: EdgeInsets.all(14),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
+        _isGeneratingQuiz
+            ? const Padding(
+                padding: EdgeInsets.all(14),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
                   ),
-                )
-              : IconButton(
-                  icon: const Icon(Icons.auto_awesome),
-                  tooltip: 'توليد أسئلة ذكية',
-                  onPressed: _generateQuiz,
                 ),
+              )
+            : IconButton(
+                icon: Icon(_hasQuizContent ? Icons.refresh : Icons.quiz_outlined),
+                tooltip: _hasQuizContent ? 'إعادة توليد الأسئلة' : 'توليد أسئلة الاختبار',
+                onPressed: _regenerateQuiz,
+              ),
       ],
       flexibleSpace: FlexibleSpaceBar(
         title: Text(

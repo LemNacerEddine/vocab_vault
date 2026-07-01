@@ -1,30 +1,26 @@
 import 'dart:convert';
 
-/// حزمة اختبار مُولّدة بالذكاء الاصطناعي (Claude) لكلمة واحدة.
+import 'quiz_question.dart';
+
+/// حزمة اختبار محلية لكلمة واحدة — تُبنى بالكامل بدون أي ذكاء اصطناعي عبر
+/// [LocalQuestionGeneratorService]، وتُحفظ كنص JSON في عمود `quizContent`
+/// بجدول `words`، فتعمل الاختبارات بعدها بدون إنترنت.
 ///
-/// تُنتَج مرة واحدة عند إضافة الكلمة (أو عند الطلب لاحقاً) وتُحفظ كنص JSON
-/// في عمود `quizContent` بجدول `words`، فتعمل الاختبارات بعدها بدون إنترنت.
-///
-/// كل الحقول اختيارية: لو غابت حزمة كاملة أو بعض حقولها، يستخدم `QuizEngine`
-/// بدائل محلية من كلمات المستخدم الأخرى فلا ينكسر شيء.
+/// [questions] هو المصدر الرئيسي الحالي (أسئلة جاهزة العرض).
+/// الحقول الأخرى (distractorTranslations...) قديمة، أُبقيت فقط للتوافق مع
+/// أي بيانات محفوظة من نسخة سابقة، ولم تعد تُستخدم في التوليد الحالي.
 class QuizPack {
-  /// ترجمات عربية قريبة لكن خاطئة (لسؤال اختيار المعنى EN→AR).
+  // الحقول التالية قديمة (لم تعد تُستخدم في التوليد الحالي) — أُبقيت فقط
+  // كي لا ينكسر تحليل JSON محفوظ من نسخة سابقة من التطبيق.
   final List<String> distractorTranslations;
-
-  /// تعريفات إنجليزية مضلِّلة (لسؤال مطابقة التعريف).
   final List<String> distractorDefinitions;
-
-  /// كلمات إنجليزية مشابهة شكلاً/معنى (لسؤال الاختيار العكسي AR→EN).
   final List<String> distractorWords;
-
-  /// جملة إنجليزية طبيعية تحتوي الكلمة (لسؤال ملء الفراغ).
   final String? clozeSentence;
-
-  /// ترجمة عربية لجملة ملء الفراغ (سياق مساعد).
   final String? clozeTranslationAr;
-
-  /// تلميح عربي لا يكشف الترجمة مباشرة.
   final String? hintAr;
+
+  /// الأسئلة المحلية الجاهزة — المصدر الرئيسي لمحتوى الاختبار.
+  final List<QuizQuestion> questions;
 
   const QuizPack({
     this.distractorTranslations = const [],
@@ -33,6 +29,7 @@ class QuizPack {
     this.clozeSentence,
     this.clozeTranslationAr,
     this.hintAr,
+    this.questions = const [],
   });
 
   /// تحويل قائمة ديناميكية من JSON إلى قائمة نصوص منظّفة.
@@ -52,6 +49,17 @@ class QuizPack {
   }
 
   factory QuizPack.fromJson(Map<String, dynamic> json) {
+    final questionsList = <QuizQuestion>[];
+    final rawQuestions = json['questions'];
+    if (rawQuestions is List) {
+      for (final q in rawQuestions) {
+        if (q is Map<String, dynamic>) {
+          questionsList.add(QuizQuestion.fromJson(q));
+        } else if (q is Map) {
+          questionsList.add(QuizQuestion.fromJson(Map<String, dynamic>.from(q)));
+        }
+      }
+    }
     return QuizPack(
       distractorTranslations: _stringList(json['distractorTranslations']),
       distractorDefinitions: _stringList(json['distractorDefinitions']),
@@ -59,6 +67,7 @@ class QuizPack {
       clozeSentence: _nonEmpty(json['clozeSentence']),
       clozeTranslationAr: _nonEmpty(json['clozeTranslationAr']),
       hintAr: _nonEmpty(json['hintAr']),
+      questions: questionsList,
     );
   }
 
@@ -70,6 +79,7 @@ class QuizPack {
       'clozeSentence': clozeSentence,
       'clozeTranslationAr': clozeTranslationAr,
       'hintAr': hintAr,
+      'questions': questions.map((q) => q.toJson()).toList(),
     };
   }
 

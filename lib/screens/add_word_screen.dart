@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../database/database_helper.dart';
+import '../models/quiz_pack.dart';
 import '../models/word.dart';
 import '../services/dictionary_service.dart';
 import '../services/unsplash_service.dart';
 import '../services/translation_service.dart';
-import '../services/claude_service.dart';
+import '../services/local_question_generator_service.dart';
+import '../services/quiz_validation_service.dart';
 
 class AddWordScreen extends StatefulWidget {
   const AddWordScreen({super.key});
@@ -120,21 +122,36 @@ class _AddWordScreenState extends State<AddWordScreen> {
           : null,
     );
 
-    // توليد حزمة أسئلة ذكية بالـ AI (إن توفّر المفتاح). غير حاجب: عند الفشل
-    // أو غياب المفتاح تُحفظ الكلمة بلا حزمة ويعمل المحرّك بـ fallback محلي.
-    final quizPack = await ClaudeService.generateQuizPack(word);
-    final wordToSave = quizPack != null
-        ? word.copyWith(quizContent: quizPack.encode())
-        : word;
+    // 1) احفظ الكلمة أولاً للحصول على معرّف حقيقي (id) تحتاجه الأسئلة.
+    final newId = await DatabaseHelper.instance.insertWord(word);
+    final savedWord = word.copyWith(id: newId);
 
-    await DatabaseHelper.instance.insertWord(wordToSave);
+    // 2) ولّد أسئلة اختبار محلية بالكامل (بدون أي ذكاء اصطناعي) اعتماداً
+    //    فقط على بيانات القاموس/الصور/الأمثلة المتوفرة فعلياً. يُفعَّل كل
+    //    نوع سؤال حسب توفر بياناته، ويُستبعد أي سؤال لا يجتاز فحص الجودة.
+    final allWords = await DatabaseHelper.instance.getAllWords();
+    final questions = LocalQuestionGeneratorService.generateQuestionsForWord(
+      word: savedWord,
+      dictionary: _dictionaryResult,
+      allWords: allWords,
+      cachedDictionaries: const [],
+    ).where(QuizValidationService.isValidQuestion).toList();
+
+    if (questions.isNotEmpty) {
+      final quizPack = QuizPack(questions: questions);
+      await DatabaseHelper.instance.updateWord(
+        savedWord.copyWith(quizContent: quizPack.encode()),
+      );
+    }
 
     setState(() => _isSaving = false);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم حفظ كلمة "${word.word}" بنجاح! ✓'),
+          content: Text(
+            'تم حفظ كلمة "${word.word}" بنجاح! ✓ (${questions.length} سؤال جاهز)',
+          ),
           backgroundColor: Colors.green,
         ),
       );

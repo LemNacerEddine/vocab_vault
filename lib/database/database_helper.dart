@@ -21,7 +21,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -53,20 +53,23 @@ class DatabaseHelper {
         createdAt TEXT NOT NULL
       )
     ''');
-    await _createProgressTable(db);
+    await _createProgressTableV8(db);
   }
 
-  Future<void> _createProgressTable(Database db) async {
+  /// جدول تقدّم التعلّم بنظام "مستوى الإتقان" (masteryLevel 0-5)، ويتتبّع
+  /// أيضاً عدد الأخطاء/الإجابات الصحيحة لكل نوع سؤال (JSON) لدعم المراجعة
+  /// الذكية حسب نقاط الضعف.
+  Future<void> _createProgressTableV8(Database db) async {
     await db.execute('''
       CREATE TABLE word_progress (
         wordId INTEGER PRIMARY KEY,
-        interval INTEGER DEFAULT 0,
-        repetition INTEGER DEFAULT 0,
-        easeFactor REAL DEFAULT 2.5,
-        nextReviewDate TEXT,
-        lastReviewDate TEXT,
-        totalAttempts INTEGER DEFAULT 0,
-        correctAttempts INTEGER DEFAULT 0,
+        correctCount INTEGER DEFAULT 0,
+        wrongCount INTEGER DEFAULT 0,
+        lastReviewedAt TEXT,
+        nextReviewAt TEXT,
+        masteryLevel INTEGER DEFAULT 0,
+        wrongByType TEXT,
+        correctByType TEXT,
         FOREIGN KEY (wordId) REFERENCES words(id) ON DELETE CASCADE
       )
     ''');
@@ -101,7 +104,14 @@ class DatabaseHelper {
     }
     if (oldVersion < 7) {
       await db.execute('ALTER TABLE words ADD COLUMN quizContent TEXT');
-      await _createProgressTable(db);
+    }
+    if (oldVersion < 8) {
+      // (v7 أنشأ جدول word_progress بمخطط SM-2 قديم؛ استُبدل هنا بنظام
+      // "مستوى الإتقان" الأبسط الذي يتتبّع أيضاً نوع الأسئلة الخاطئة/الصحيحة
+      // لكل كلمة. المرحلة كانت لا تزال قيد التطوير المبكر، فلا بيانات
+      // إنتاجية مهمة تستحق الحفظ عبر هذا التحوّل الهيكلي.)
+      await db.execute('DROP TABLE IF EXISTS word_progress');
+      await _createProgressTableV8(db);
     }
   }
 
@@ -164,15 +174,15 @@ class DatabaseHelper {
     return result.isNotEmpty;
   }
 
-  // ==================== تقدّم التعلّم (SM-2) ====================
+  // ==================== تقدّم التعلّم (مستوى الإتقان) ====================
 
   /// سجل التقدّم لكلمة، أو null إن لم تُراجَع بعد.
-  Future<WordProgress?> getProgress(int wordId) async {
+  Future<WordProgress?> getProgress(String wordId) async {
     final db = await database;
     final result = await db.query(
       'word_progress',
       where: 'wordId = ?',
-      whereArgs: [wordId],
+      whereArgs: [int.tryParse(wordId) ?? wordId],
     );
     if (result.isEmpty) return null;
     return WordProgress.fromMap(result.first);
@@ -188,6 +198,19 @@ class DatabaseHelper {
     );
   }
 
+  /// سجلات تقدّم جميع الكلمات، مُفهرَسة بمعرّف الكلمة (نصاً) — تُستخدم في
+  /// بناء جلسة المراجعة الذكية دفعة واحدة بدل استعلام لكل كلمة.
+  Future<Map<String, WordProgress>> getAllProgressMap() async {
+    final db = await database;
+    final rows = await db.query('word_progress');
+    final map = <String, WordProgress>{};
+    for (final row in rows) {
+      final wp = WordProgress.fromMap(row);
+      map[wp.wordId] = wp;
+    }
+    return map;
+  }
+
   /// جميع الكلمات المستحقّة للمراجعة الآن:
   /// كلمات بلا سجل تقدّم (جديدة) + كلمات حان موعد مراجعتها.
   /// مرتّبة: المستحقّة الأقدم أولاً، ثم الكلمات الجديدة.
@@ -199,9 +222,9 @@ class DatabaseHelper {
       SELECT w.* FROM words w
       LEFT JOIN word_progress p ON p.wordId = w.id
       WHERE p.wordId IS NULL
-         OR p.nextReviewDate IS NULL
-         OR p.nextReviewDate <= ?
-      ORDER BY (p.nextReviewDate IS NULL) ASC, p.nextReviewDate ASC, w.createdAt ASC
+         OR p.nextReviewAt IS NULL
+         OR p.nextReviewAt <= ?
+      ORDER BY (p.nextReviewAt IS NULL) ASC, p.nextReviewAt ASC, w.createdAt ASC
       ''',
       [now],
     );
@@ -217,12 +240,30 @@ class DatabaseHelper {
       SELECT COUNT(*) as count FROM words w
       LEFT JOIN word_progress p ON p.wordId = w.id
       WHERE p.wordId IS NULL
-         OR p.nextReviewDate IS NULL
-         OR p.nextReviewDate <= ?
+         OR p.nextReviewAt IS NULL
+         OR p.nextReviewAt <= ?
       ''',
       [now],
     );
     return (result.first['count'] as int?) ?? 0;
+  }
+
+  /// "الكلمات الصعبة": كلمات لها أخطاء مسجَّلة، مرتّبة بالأسوأ دقّةً أولاً.
+  /// تُستخدم في وضع "الكلمات الصعبة" (Weak Words) لمراجعة مركَّزة.
+  Future<List<Word>> getWeakWords({int limit = 20}) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      '''
+      SELECT w.* FROM words w
+      INNER JOIN word_progress p ON p.wordId = w.id
+      WHERE p.wrongCount > 0
+      ORDER BY (CAST(p.wrongCount AS REAL) / (p.correctCount + p.wrongCount)) DESC,
+               p.wrongCount DESC
+      LIMIT ?
+      ''',
+      [limit],
+    );
+    return result.map((map) => Word.fromMap(map)).toList();
   }
 
   Future<void> close() async {

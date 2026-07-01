@@ -1,50 +1,96 @@
-/// حالة التعلّم لكلمة واحدة وفق خوارزمية التكرار المتباعد (SM-2).
-///
-/// تُخزَّن في جدول `word_progress` منفصلاً عن بيانات الكلمة نفسها.
+import 'dart:convert';
+
+import 'question_type.dart';
+
+/// حالة تعلّم كلمة واحدة وفق نظام "مستوى الإتقان" (masteryLevel 0-5)
+/// بدلاً من خوارزمية SM-2 التقليدية — أبسط، وأكثر قابلية للتفسير للمستخدم،
+/// ويتتبّع أيضاً نوع الأسئلة التي يخطئ/يصيب فيها المستخدم لكل كلمة
+/// (wrongByType / correctByType) لدعم المراجعة الذكية حسب نقاط الضعف.
 class WordProgress {
-  final int wordId;
-  final int interval; // عدد الأيام حتى المراجعة القادمة
-  final int repetition; // عدد الإجابات الصحيحة المتتالية
-  final double easeFactor; // معامل السهولة (يبدأ 2.5)
-  final DateTime? nextReviewDate;
-  final DateTime? lastReviewDate;
-  final int totalAttempts;
-  final int correctAttempts;
+  final String wordId;
+  final int correctCount;
+  final int wrongCount;
+  final DateTime? lastReviewedAt;
+  final DateTime? nextReviewAt;
+  final int masteryLevel; // 0 إلى 5
+  final Map<QuestionType, int> wrongByType;
+  final Map<QuestionType, int> correctByType;
 
   const WordProgress({
     required this.wordId,
-    this.interval = 0,
-    this.repetition = 0,
-    this.easeFactor = 2.5,
-    this.nextReviewDate,
-    this.lastReviewDate,
-    this.totalAttempts = 0,
-    this.correctAttempts = 0,
+    this.correctCount = 0,
+    this.wrongCount = 0,
+    this.lastReviewedAt,
+    this.nextReviewAt,
+    this.masteryLevel = 0,
+    this.wrongByType = const {},
+    this.correctByType = const {},
   });
 
   /// حالة ابتدائية لكلمة لم تُراجَع بعد (مستحقّة فوراً).
-  factory WordProgress.initial(int wordId) => WordProgress(wordId: wordId);
+  factory WordProgress.initial(String wordId) => WordProgress(wordId: wordId);
 
-  /// نسبة الإتقان (0.0 - 1.0). تُستخدم لوضع "الكلمات الصعبة".
-  double get accuracy =>
-      totalAttempts == 0 ? 0.0 : correctAttempts / totalAttempts;
-
-  /// هل الكلمة مستحقّة للمراجعة الآن؟ (لا سجل سابق = مستحقّة).
-  bool get isDue {
-    if (nextReviewDate == null) return true;
-    return !nextReviewDate!.isAfter(DateTime.now());
+  /// نسبة الإتقان الكلية (0.0 - 1.0).
+  double get accuracy {
+    final total = correctCount + wrongCount;
+    return total == 0 ? 0.0 : correctCount / total;
   }
 
+  /// هل الكلمة مستحقّة للمراجعة الآن؟ (لا سجل سابق = مستحقّة فوراً).
+  bool get isDue {
+    if (nextReviewAt == null) return true;
+    return !nextReviewAt!.isAfter(DateTime.now());
+  }
+
+  /// أكثر نوع سؤال يخطئ فيه المستخدم بهذه الكلمة تحديداً، أو null إن لا بيانات.
+  QuestionType? get weakestType {
+    if (wrongByType.isEmpty) return null;
+    QuestionType? best;
+    var bestCount = 0;
+    wrongByType.forEach((type, count) {
+      if (count > bestCount) {
+        best = type;
+        bestCount = count;
+      }
+    });
+    return bestCount > 0 ? best : null;
+  }
+
+  static Map<QuestionType, int> _decodeTypeMap(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return {};
+    try {
+      final decoded = json.decode(raw) as Map<String, dynamic>;
+      final result = <QuestionType, int>{};
+      decoded.forEach((key, value) {
+        for (final t in QuestionType.values) {
+          if (t.name == key) {
+            result[t] = (value as num).toInt();
+            break;
+          }
+        }
+      });
+      return result;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static String _encodeTypeMap(Map<QuestionType, int> map) {
+    final asStringMap = map.map((key, value) => MapEntry(key.name, value));
+    return json.encode(asStringMap);
+  }
+
+  /// wordId يُحوَّل رقماً عند الحفظ (يطابق عمود words.id عدداً صحيحاً).
   Map<String, dynamic> toMap() {
     return {
-      'wordId': wordId,
-      'interval': interval,
-      'repetition': repetition,
-      'easeFactor': easeFactor,
-      'nextReviewDate': nextReviewDate?.toIso8601String(),
-      'lastReviewDate': lastReviewDate?.toIso8601String(),
-      'totalAttempts': totalAttempts,
-      'correctAttempts': correctAttempts,
+      'wordId': int.tryParse(wordId) ?? wordId,
+      'correctCount': correctCount,
+      'wrongCount': wrongCount,
+      'lastReviewedAt': lastReviewedAt?.toIso8601String(),
+      'nextReviewAt': nextReviewAt?.toIso8601String(),
+      'masteryLevel': masteryLevel,
+      'wrongByType': _encodeTypeMap(wrongByType),
+      'correctByType': _encodeTypeMap(correctByType),
     };
   }
 
@@ -52,35 +98,35 @@ class WordProgress {
     DateTime? parse(dynamic v) =>
         (v is String && v.isNotEmpty) ? DateTime.tryParse(v) : null;
     return WordProgress(
-      wordId: map['wordId'] as int,
-      interval: (map['interval'] as int?) ?? 0,
-      repetition: (map['repetition'] as int?) ?? 0,
-      easeFactor: (map['easeFactor'] as num?)?.toDouble() ?? 2.5,
-      nextReviewDate: parse(map['nextReviewDate']),
-      lastReviewDate: parse(map['lastReviewDate']),
-      totalAttempts: (map['totalAttempts'] as int?) ?? 0,
-      correctAttempts: (map['correctAttempts'] as int?) ?? 0,
+      wordId: map['wordId'].toString(),
+      correctCount: (map['correctCount'] as int?) ?? 0,
+      wrongCount: (map['wrongCount'] as int?) ?? 0,
+      lastReviewedAt: parse(map['lastReviewedAt']),
+      nextReviewAt: parse(map['nextReviewAt']),
+      masteryLevel: (map['masteryLevel'] as int?) ?? 0,
+      wrongByType: _decodeTypeMap(map['wrongByType'] as String?),
+      correctByType: _decodeTypeMap(map['correctByType'] as String?),
     );
   }
 
   WordProgress copyWith({
-    int? interval,
-    int? repetition,
-    double? easeFactor,
-    DateTime? nextReviewDate,
-    DateTime? lastReviewDate,
-    int? totalAttempts,
-    int? correctAttempts,
+    int? correctCount,
+    int? wrongCount,
+    DateTime? lastReviewedAt,
+    DateTime? nextReviewAt,
+    int? masteryLevel,
+    Map<QuestionType, int>? wrongByType,
+    Map<QuestionType, int>? correctByType,
   }) {
     return WordProgress(
       wordId: wordId,
-      interval: interval ?? this.interval,
-      repetition: repetition ?? this.repetition,
-      easeFactor: easeFactor ?? this.easeFactor,
-      nextReviewDate: nextReviewDate ?? this.nextReviewDate,
-      lastReviewDate: lastReviewDate ?? this.lastReviewDate,
-      totalAttempts: totalAttempts ?? this.totalAttempts,
-      correctAttempts: correctAttempts ?? this.correctAttempts,
+      correctCount: correctCount ?? this.correctCount,
+      wrongCount: wrongCount ?? this.wrongCount,
+      lastReviewedAt: lastReviewedAt ?? this.lastReviewedAt,
+      nextReviewAt: nextReviewAt ?? this.nextReviewAt,
+      masteryLevel: masteryLevel ?? this.masteryLevel,
+      wrongByType: wrongByType ?? this.wrongByType,
+      correctByType: correctByType ?? this.correctByType,
     );
   }
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../database/database_helper.dart';
 import '../models/word.dart';
-import '../services/quiz_engine.dart';
+import '../services/review_session_builder.dart';
 import '../utils/pos_category.dart';
 import 'add_word_screen.dart';
 import 'word_detail_screen.dart';
@@ -71,23 +71,31 @@ class _HomeScreenState extends State<HomeScreen> {
     _recomputeFiltered();
   }
 
-  // بدء جلسة اختبار. [subset] لاختبار مجموعة محدّدة؛ وإلا الكلمات المستحقّة.
+  // بدء جلسة اختبار. [subset] لاختبار مجموعة محدّدة (تصنيف أو كلمات صعبة)؛
+  // وإلا تُبنى الجلسة من الكلمات المستحقّة للمراجعة الآن.
   Future<void> _startQuiz({List<Word>? subset}) async {
-    final List<Word> source;
-    if (subset != null) {
-      source = subset;
-    } else {
-      source = await DatabaseHelper.instance.getDueWords();
+    final source = subset ?? await DatabaseHelper.instance.getDueWords();
+    if (source.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا توجد كلمات كافية للاختبار الآن. أضف المزيد!'),
+        ),
+      );
+      return;
     }
-    final all =
-        _words.isNotEmpty ? _words : await DatabaseHelper.instance.getAllWords();
-    final questions = QuizEngine.buildSession(source, all);
+
+    final progressMap = await DatabaseHelper.instance.getAllProgressMap();
+    final questions = ReviewSessionBuilder.buildSession(
+      words: source,
+      progress: progressMap,
+    );
 
     if (!mounted) return;
     if (questions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('لا توجد كلمات كافية للاختبار الآن. أضف المزيد!'),
+          content: Text('لا توجد بيانات كافية لبناء أسئلة الآن. أضف تفاصيل أكثر للكلمات (صور/أمثلة/مرادفات).'),
         ),
       );
       return;
@@ -98,6 +106,19 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (context) => QuizScreen(questions: questions)),
     );
     _loadWords();
+  }
+
+  // بدء جلسة تركّز على "الكلمات الصعبة" (أكثر الكلمات خطأً).
+  Future<void> _startWeakWordsQuiz() async {
+    final weak = await DatabaseHelper.instance.getWeakWords();
+    if (!mounted) return;
+    if (weak.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد كلمات صعبة مسجَّلة بعد — استمر في المراجعة!')),
+      );
+      return;
+    }
+    await _startQuiz(subset: weak);
   }
 
   void _filterWords(String query) {
@@ -214,6 +235,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildStatsBar(),
                       // زر بدء المراجعة
                       _buildReviewBanner(),
+                      // زر التركيز على الكلمات الصعبة
+                      _buildWeakWordsButton(),
                       // تبويبات التصنيف (أسماء/أفعال/صفات)
                       _buildCategoryChips(),
                       // قائمة الكلمات
@@ -287,6 +310,24 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Colors.orange,
           ),
         ],
+      ),
+    );
+  }
+
+  // زر صغير لبدء جلسة مركَّزة على الكلمات التي يخطئ فيها المستخدم كثيراً
+  Widget _buildWeakWordsButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: _startWeakWordsQuiz,
+          icon: Icon(Icons.trending_down, size: 18, color: Colors.red.shade600),
+          label: Text(
+            'الكلمات الصعبة',
+            style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600),
+          ),
+        ),
       ),
     );
   }

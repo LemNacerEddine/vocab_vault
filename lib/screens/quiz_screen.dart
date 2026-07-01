@@ -4,11 +4,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../database/database_helper.dart';
 import '../models/quiz_question.dart';
-import '../models/word.dart';
 import '../models/word_progress.dart';
-import '../services/spaced_repetition_service.dart';
+import '../services/mastery_service.dart';
+import '../utils/question_type_labels.dart';
 
-/// شاشة جلسة اختبار: تعرض الأسئلة تباعاً، تصحّح فورياً، وتحدّث جدولة SM-2.
+/// شاشة جلسة اختبار: تعرض الأسئلة تباعاً (بأنواعها العشرة المختلفة)،
+/// تصحّح فورياً، وتحدّث جدولة "مستوى الإتقان" لكل كلمة.
 class QuizScreen extends StatefulWidget {
   final List<QuizQuestion> questions;
 
@@ -20,13 +21,13 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  static final RegExp _arabicPattern = RegExp(r'[؀-ۿ]');
 
   int _index = 0;
-  QuizOption? _selected;
+  String? _selectedOption;
   bool _answered = false;
   int _correctCount = 0;
-  final List<Word> _hardWords = [];
-  DateTime _questionStart = DateTime.now();
+  final List<QuizQuestion> _wrongQuestions = [];
 
   QuizQuestion get _current => widget.questions[_index];
   bool get _isFinished => _index >= widget.questions.length;
@@ -36,6 +37,8 @@ class _QuizScreenState extends State<QuizScreen> {
     _audioPlayer.dispose();
     super.dispose();
   }
+
+  bool _isArabicText(String s) => _arabicPattern.hasMatch(s);
 
   Future<void> _playAudio(String url) async {
     try {
@@ -50,37 +53,31 @@ class _QuizScreenState extends State<QuizScreen> {
     }
   }
 
-  Future<void> _onSelect(QuizOption option) async {
+  Future<void> _onSelect(String option) async {
     if (_answered) return;
-    final correct = option.isCorrect;
-    final timeTaken = DateTime.now().difference(_questionStart);
+    final correct = option.trim() == _current.correctAnswer.trim();
 
     setState(() {
-      _selected = option;
+      _selectedOption = option;
       _answered = true;
       if (correct) {
         _correctCount++;
       } else {
-        _hardWords.add(_current.word);
+        _wrongQuestions.add(_current);
       }
     });
 
-    await _persistResult(_current.word, correct, timeTaken);
+    await _persistResult(_current, correct);
   }
 
-  Future<void> _persistResult(
-    Word word,
-    bool correct,
-    Duration timeTaken,
-  ) async {
-    final id = word.id;
-    if (id == null) return;
+  Future<void> _persistResult(QuizQuestion question, bool correct) async {
     final db = DatabaseHelper.instance;
-    final current = await db.getProgress(id) ?? WordProgress.initial(id);
-    final updated = SpacedRepetitionService.applyAnswer(
+    final current =
+        await db.getProgress(question.wordId) ?? WordProgress.initial(question.wordId);
+    final updated = MasteryService.applyAnswer(
       current,
+      type: question.type,
       correct: correct,
-      timeTaken: timeTaken,
     );
     await db.upsertProgress(updated);
   }
@@ -88,9 +85,8 @@ class _QuizScreenState extends State<QuizScreen> {
   void _next() {
     setState(() {
       _index++;
-      _selected = null;
+      _selectedOption = null;
       _answered = false;
-      _questionStart = DateTime.now();
     });
   }
 
@@ -118,7 +114,7 @@ class _QuizScreenState extends State<QuizScreen> {
         child: Column(
           children: [
             LinearProgressIndicator(
-              value: total == 0 ? 0 : (_index) / total,
+              value: total == 0 ? 0 : _index / total,
               backgroundColor: Colors.deepPurple.shade100,
               color: Colors.deepPurple,
             ),
@@ -128,12 +124,11 @@ class _QuizScreenState extends State<QuizScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    _buildTypeChip(q),
+                    const SizedBox(height: 10),
                     _buildPromptCard(q),
                     const SizedBox(height: 20),
-                    if (q.optionsAreImages)
-                      _buildImageOptions(q)
-                    else
-                      _buildTextOptions(q),
+                    _buildOptions(q),
                     const SizedBox(height: 16),
                     if (_answered) _buildFeedback(q),
                   ],
@@ -147,7 +142,20 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
+  Widget _buildTypeChip(QuizQuestion q) {
+    return Align(
+      alignment: Alignment.center,
+      child: Chip(
+        avatar: Icon(QuestionTypeLabels.icon(q.type), size: 16, color: Colors.deepPurple),
+        label: Text(QuestionTypeLabels.arabic(q.type)),
+        backgroundColor: Colors.deepPurple.shade50,
+        labelStyle: TextStyle(color: Colors.deepPurple.shade700, fontSize: 12),
+      ),
+    );
+  }
+
   Widget _buildPromptCard(QuizQuestion q) {
+    final hasImage = q.imageUrl != null && q.imageUrl!.isNotEmpty;
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -155,26 +163,41 @@ class _QuizScreenState extends State<QuizScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Text(
-              q.promptAr,
-              textAlign: TextAlign.center,
-              textDirection: TextDirection.rtl,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (q.promptDetail != null) ...[
-              const SizedBox(height: 14),
-              Text(
-                q.promptDetail!,
-                textAlign: TextAlign.center,
-                textDirection: TextDirection.ltr,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.grey.shade800,
-                  height: 1.5,
+            if (hasImage) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: q.imageUrl!,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    height: 180,
+                    color: Colors.grey.shade200,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 180,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  ),
                 ),
+              ),
+              const SizedBox(height: 14),
+            ],
+            Text(
+              q.prompt,
+              textAlign: TextAlign.center,
+              textDirection: _isArabicText(q.prompt) ? TextDirection.rtl : TextDirection.ltr,
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, height: 1.5),
+            ),
+            if (q.hint != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                q.hint!,
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.rtl,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
               ),
             ],
             if (q.audioUrl != null) ...[
@@ -186,10 +209,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
               ),
             ],
@@ -199,12 +219,10 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  Widget _buildTextOptions(QuizQuestion q) {
-    final isArabicOptions = q.type == QuizType.chooseMeaning ||
-        q.type == QuizType.listenChoose;
+  Widget _buildOptions(QuizQuestion q) {
     return Column(
       children: q.options.map((option) {
-        final color = _optionColor(option);
+        final color = _optionColor(option, q);
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Material(
@@ -215,10 +233,7 @@ class _QuizScreenState extends State<QuizScreen> {
               onTap: () => _onSelect(option),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 16,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: color.border, width: 1.5),
@@ -231,15 +246,9 @@ class _QuizScreenState extends State<QuizScreen> {
                     ],
                     Expanded(
                       child: Text(
-                        option.text ?? '',
-                        textDirection: isArabicOptions
-                            ? TextDirection.rtl
-                            : TextDirection.ltr,
-                        style: TextStyle(
-                          fontSize: 17,
-                          color: color.text,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        option,
+                        textDirection: _isArabicText(option) ? TextDirection.rtl : TextDirection.ltr,
+                        style: TextStyle(fontSize: 16, color: color.text, fontWeight: FontWeight.w500),
                       ),
                     ),
                   ],
@@ -252,76 +261,18 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  Widget _buildImageOptions(QuizQuestion q) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      children: q.options.map((option) {
-        final color = _optionColor(option);
-        return GestureDetector(
-          onTap: () => _onSelect(option),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: color.border, width: 3),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(11),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: option.imageUrl ?? '',
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey.shade200,
-                      child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.broken_image, color: Colors.grey),
-                    ),
-                  ),
-                  if (color.icon != null)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: color.border,
-                        child: Icon(color.icon, color: Colors.white, size: 20),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
   Widget _buildFeedback(QuizQuestion q) {
-    final correct = _selected?.isCorrect ?? false;
-    final correctText = q.options
-        .firstWhere((o) => o.isCorrect)
-        .text;
+    final correct = _selectedOption?.trim() == q.correctAnswer.trim();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: correct ? Colors.green.shade50 : Colors.red.shade50,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: correct ? Colors.green.shade300 : Colors.red.shade300,
-        ),
+        border: Border.all(color: correct ? Colors.green.shade300 : Colors.red.shade300),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             correct ? Icons.check_circle : Icons.cancel,
@@ -329,16 +280,28 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              correct
-                  ? 'إجابة صحيحة! أحسنت 🎉'
-                  : 'الإجابة الصحيحة: ${correctText ?? q.word.word}',
-              textDirection: TextDirection.rtl,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: correct ? Colors.green.shade800 : Colors.red.shade800,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  correct ? 'إجابة صحيحة! أحسنت 🎉' : 'الإجابة الصحيحة: ${q.correctAnswer}',
+                  textDirection: TextDirection.rtl,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: correct ? Colors.green.shade800 : Colors.red.shade800,
+                  ),
+                ),
+                if (q.explanation != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    q.explanation!,
+                    textDirection:
+                        _isArabicText(q.explanation!) ? TextDirection.rtl : TextDirection.ltr,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -358,9 +321,7 @@ class _QuizScreenState extends State<QuizScreen> {
             backgroundColor: Colors.deepPurple,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
           child: Text(
             isLast ? 'إنهاء الجلسة' : 'السؤال التالي',
@@ -405,18 +366,12 @@ class _QuizScreenState extends State<QuizScreen> {
               const SizedBox(height: 16),
               Text(
                 '$_correctCount / $total إجابة صحيحة',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(
-                'نسبة النجاح: %$pct',
-                style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
-              ),
+              Text('نسبة النجاح: %$pct', style: TextStyle(fontSize: 18, color: Colors.grey.shade700)),
               const SizedBox(height: 24),
-              if (_hardWords.isNotEmpty) _buildHardWordsCard(),
+              if (_wrongQuestions.isNotEmpty) _buildHardWordsCard(),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -426,16 +381,11 @@ class _QuizScreenState extends State<QuizScreen> {
                     backgroundColor: Colors.deepPurple,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: const Text(
                     'العودة للرئيسية',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -447,10 +397,10 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Widget _buildHardWordsCard() {
-    // كلمات فريدة أخطأ فيها المستخدم.
-    final unique = <String, Word>{};
-    for (final w in _hardWords) {
-      unique[w.word] = w;
+    // أسئلة فريدة أخطأ فيها المستخدم (كلمة + نوع السؤال).
+    final unique = <String, QuizQuestion>{};
+    for (final q in _wrongQuestions) {
+      unique['${q.wordId}_${q.type.name}'] = q;
     }
     return Card(
       elevation: 2,
@@ -464,19 +414,17 @@ class _QuizScreenState extends State<QuizScreen> {
               children: [
                 Icon(Icons.priority_high, color: Colors.red.shade700),
                 const SizedBox(width: 8),
-                const Text(
-                  'كلمات تحتاج مراجعة',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                ),
+                const Text('نقاط تحتاج مراجعة', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: unique.values.map((w) {
+              children: unique.values.map((q) {
                 return Chip(
-                  label: Text('${w.word} — ${w.translation}'),
+                  avatar: Icon(QuestionTypeLabels.icon(q.type), size: 16, color: Colors.red.shade700),
+                  label: Text('${q.correctAnswer} — ${QuestionTypeLabels.arabic(q.type)}'),
                   backgroundColor: Colors.red.shade50,
                 );
               }).toList(),
@@ -487,7 +435,7 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  _OptionColors _optionColor(QuizOption option) {
+  _OptionColors _optionColor(String option, QuizQuestion q) {
     if (!_answered) {
       return _OptionColors(
         background: Colors.white,
@@ -495,7 +443,8 @@ class _QuizScreenState extends State<QuizScreen> {
         text: Colors.black87,
       );
     }
-    if (option.isCorrect) {
+    final isCorrectOption = option.trim() == q.correctAnswer.trim();
+    if (isCorrectOption) {
       return _OptionColors(
         background: Colors.green.shade50,
         border: Colors.green.shade600,
@@ -503,7 +452,7 @@ class _QuizScreenState extends State<QuizScreen> {
         icon: Icons.check,
       );
     }
-    if (identical(option, _selected)) {
+    if (option == _selectedOption) {
       return _OptionColors(
         background: Colors.red.shade50,
         border: Colors.red.shade600,
@@ -525,10 +474,5 @@ class _OptionColors {
   final Color text;
   final IconData? icon;
 
-  _OptionColors({
-    required this.background,
-    required this.border,
-    required this.text,
-    this.icon,
-  });
+  _OptionColors({required this.background, required this.border, required this.text, this.icon});
 }

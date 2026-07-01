@@ -194,6 +194,17 @@ class LemmatizationService {
     return word.length >= 2 && RegExp(r'^[a-z]+$').hasMatch(word);
   }
 
+  /// البحث العكسي في قاموس الأفعال الشاذة: يرجع صيغة الماضي الشاذة المعروفة
+  /// لفعل أساسي (مثال: 'go' → 'went'). علاقة مؤكدة من قاموس ثابت،
+  /// وليست توليداً احتمالياً. يرجع null إن لم توجد صيغة شاذة معروفة.
+  static String? irregularPastOf(String base) {
+    final b = base.trim().toLowerCase();
+    for (final entry in _irregularVerbs.entries) {
+      if (entry.value == b) return entry.key;
+    }
+    return null;
+  }
+
   // =============================================
   // قاموس الجموع الشاذة
   // =============================================
