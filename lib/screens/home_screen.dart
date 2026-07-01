@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../database/database_helper.dart';
 import '../models/word.dart';
+import '../services/notification_service.dart';
 import '../services/review_session_builder.dart';
 import '../utils/pos_category.dart';
 import 'add_word_screen.dart';
@@ -47,6 +48,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _isLoading = false;
     });
     _recomputeFiltered();
+    // تحديث نص إشعار التذكير اليومي بالعدد الجديد للكلمات المستحقّة
+    // (بعد كل جلسة/إضافة/حذف). غير حاجب للواجهة.
+    NotificationService.rescheduleWithFreshCount();
   }
 
   // إعادة حساب القائمة المعروضة وفق المجموعة المختارة ونص البحث معاً.
