@@ -191,6 +191,8 @@ class _SplashScreenState extends State<SplashScreen>
                 opacity: _footerController,
                 child: Column(
                   children: [
+                    Image.asset('assets/images/vp_logo.png', height: 36),
+                    const SizedBox(height: 10),
                     Text.rich(
                       TextSpan(
                         text: 'Created by ',
