@@ -309,7 +309,6 @@ class LemmatizationService {
     'taught': 'teach',
     'fought': 'fight',
     'sought': 'seek',
-    'thought': 'think',
     'chose': 'choose',
     'drove': 'drive',
     'fell': 'fall',
