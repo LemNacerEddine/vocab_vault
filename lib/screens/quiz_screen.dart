@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../models/quiz_question.dart';
 import '../models/word_progress.dart';
 import '../services/mastery_service.dart';
+import '../services/review_service.dart';
 import '../utils/question_type_labels.dart';
 
 /// شاشة جلسة اختبار: تعرض الأسئلة تباعاً (بأنواعها العشرة المختلفة)،
@@ -89,6 +90,14 @@ class _QuizScreenState extends State<QuizScreen> {
       _selectedOption = null;
       _answered = false;
     });
+
+    // لحظة رضا: جلسة اكتملت بنتيجة عالية → قد نطلب تقييم المتجر (٥ نجوم).
+    // الخدمة نفسها تطبق كل قيود التكرار ولا تفعل شيئاً إن لم تجتمع الشروط.
+    if (_isFinished) {
+      final total = widget.questions.length;
+      final pct = total == 0 ? 0 : (_correctCount / total * 100).round();
+      ReviewService.maybeRequestReview(scorePercent: pct);
+    }
   }
 
   @override
