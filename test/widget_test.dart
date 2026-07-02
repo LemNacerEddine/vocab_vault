@@ -8,11 +8,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:vocab_vault/main.dart';
+import 'package:mofradati/main.dart';
 
 void main() {
   test('جذر التطبيق قابل للإنشاء', () {
-    const app = VocabVaultApp();
+    const app = MofradatiApp();
     expect(app, isA<Widget>());
   });
 }

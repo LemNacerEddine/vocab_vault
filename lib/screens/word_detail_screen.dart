@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import '../models/quiz_pack.dart';
 import '../models/word.dart';
 import '../database/database_helper.dart';
+import '../theme/app_theme.dart';
 import '../services/local_question_generator_service.dart';
 import '../services/quiz_validation_service.dart';
 
@@ -157,7 +158,7 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
     return SliverAppBar(
       expandedHeight: widget.word.imageUrl != null ? 220 : 120,
       pinned: true,
-      backgroundColor: Colors.deepPurple,
+      backgroundColor: AppColors.brand,
       foregroundColor: Colors.white,
       actions: [
         _isGeneratingQuiz
@@ -194,10 +195,10 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                     imageUrl: widget.word.imageUrl!,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
-                      color: Colors.deepPurple.shade200,
+                      color: AppColors.brand.shade200,
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: Colors.deepPurple.shade200,
+                      color: AppColors.brand.shade200,
                       child: const Icon(Icons.broken_image,
                           size: 50, color: Colors.white54),
                     ),
@@ -220,8 +221,8 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Colors.deepPurple.shade700,
-                      Colors.deepPurple.shade400,
+                      AppColors.brand.shade700,
+                      AppColors.brand.shade400,
                     ],
                   ),
                 ),
@@ -251,12 +252,12 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                     gradient: LinearGradient(
                       colors: _isPlaying
                           ? [Colors.grey.shade400, Colors.grey.shade500]
-                          : [Colors.deepPurple.shade400, Colors.deepPurple.shade700],
+                          : [AppColors.brand.shade400, AppColors.brand.shade700],
                     ),
                     borderRadius: BorderRadius.circular(30),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.deepPurple.withOpacity(0.3),
+                        color: AppColors.brand.withOpacity(0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -303,21 +304,21 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade50,
+                  color: AppColors.brand.shade50,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.record_voice_over,
-                        size: 18, color: Colors.deepPurple.shade400),
+                        size: 18, color: AppColors.brand.shade400),
                     const SizedBox(width: 8),
                     Text(
                       widget.word.phonetic!,
                       style: TextStyle(
                         fontSize: 18,
                         fontStyle: FontStyle.italic,
-                        color: Colors.deepPurple.shade700,
+                        color: AppColors.brand.shade700,
                       ),
                     ),
                   ],
@@ -544,7 +545,7 @@ class _WordDetailScreenState extends State<WordDetailScreen> {
                     text: widget.word.rootWord!,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple.shade700,
+                      color: AppColors.brand.shade700,
                       fontStyle: FontStyle.italic,
                       fontSize: 16,
                     ),

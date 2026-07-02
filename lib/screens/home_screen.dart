@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../database/database_helper.dart';
+import '../theme/app_theme.dart';
 import '../models/word.dart';
 import '../services/notification_service.dart';
 import '../services/review_session_builder.dart';
@@ -191,11 +192,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 onChanged: _filterWords,
               )
             : const Text(
-                'VocabVault',
+                'Mofradati',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
         centerTitle: !_isSearching,
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -224,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.deepPurple.shade50,
+              AppColors.brand.shade50,
               Colors.white,
             ],
           ),
@@ -258,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _loadWords();
           }
         },
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('كلمة جديدة'),
@@ -276,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.deepPurple.withOpacity(0.1),
+            color: AppColors.brand.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -289,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.library_books,
             label: 'إجمالي الكلمات',
             value: '${_words.length}',
-            color: Colors.deepPurple,
+            color: AppColors.brand,
           ),
           Container(
             width: 1,
@@ -364,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: ActionChip(
                 avatar: const Icon(Icons.quiz, size: 18,
-                    color: Colors.deepPurple),
+                    color: AppColors.brand),
                 label: const Text('اختبر المجموعة'),
                 onPressed: () => _startQuiz(subset: _filteredWords),
               ),
@@ -381,13 +382,13 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ChoiceChip(
         label: Text(label),
         selected: selected,
-        selectedColor: Colors.deepPurple,
+        selectedColor: AppColors.brand,
         labelStyle: TextStyle(
-          color: selected ? Colors.white : Colors.deepPurple.shade700,
+          color: selected ? Colors.white : AppColors.brand.shade700,
           fontWeight: FontWeight.w500,
         ),
         backgroundColor: Colors.white,
-        side: BorderSide(color: Colors.deepPurple.shade100),
+        side: BorderSide(color: AppColors.brand.shade100),
         onSelected: (_) => _selectCategory(category),
       ),
     );
@@ -399,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Material(
-        color: hasDue ? Colors.deepPurple : Colors.deepPurple.shade200,
+        color: hasDue ? AppColors.brand : AppColors.brand.shade200,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
@@ -497,13 +498,13 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.deepPurple.shade50,
+              color: AppColors.brand.shade50,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.auto_stories,
               size: 64,
-              color: Colors.deepPurple.shade300,
+              color: AppColors.brand.shade300,
             ),
           ),
           const SizedBox(height: 24),
@@ -511,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'ابدأ رحلتك مع الكلمات!',
             style: TextStyle(
               fontSize: 22,
-              color: Colors.deepPurple.shade700,
+              color: AppColors.brand.shade700,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -629,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               if (word.partOfSpeech != null)
                                 _buildTag(
-                                    word.partOfSpeech!, Colors.deepPurple),
+                                    word.partOfSpeech!, AppColors.brand),
                               if (word.synonymsList.isNotEmpty)
                                 _buildTag(
                                     '${word.synonymsList.length} مرادف',
@@ -678,7 +679,7 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 52,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.deepPurple.shade400, Colors.deepPurple.shade600],
+          colors: [AppColors.brand.shade400, AppColors.brand.shade600],
         ),
         borderRadius: BorderRadius.circular(10),
       ),

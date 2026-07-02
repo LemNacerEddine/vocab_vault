@@ -1,125 +1,213 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""توليد أصول هوية VP Developer لتطبيق VocabVault.
+"""توليد أصول هوية تطبيق Mofradati (مؤسسة VP Developer).
+
+الأيقونة: مربع أزرق متدرج بزوايا دائرية، وبداخله كتاب مفتوح أبيض تعلوه
+مصباح إضاءة (فكرة/معرفة) — مطابقة لتصميم Stitch المعتمد.
 
 يولّد:
-  - assets/icon/app_icon.png            الأيقونة الرئيسية 1024×1024 (زوايا دائرية شفافة)
-  - assets/images/vp_logo.png           شعار السبلاش (VP + DEVELOPER، خلفية شفافة)
-  - android/app/src/main/res/mipmap-*/ic_launcher.png   (5 مقاسات)
-  - ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png (كل المقاسات في Contents.json،
-    نسخة مصمتة بدون شفافية كما تشترط Apple)
+  - assets/icon/app_icon.png            الأيقونة الرئيسية 1024×1024 (مربعة مصمتة)
+  - assets/images/vp_logo.png           نسخة بزوايا دائرية شفافة (تُعرض في السبلاش)
+  - android/app/src/main/res/mipmap-*/ic_launcher.png   (5 مقاسات، زوايا دائرية)
+  - ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png (كل المقاسات، مصمتة كما
+    تشترط Apple — النظام يقصّ الزوايا بنفسه)
 
 التشغيل:  pip install Pillow  ثم  python3 tool/generate_brand_assets.py
 """
 
 import json
+import math
 import os
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
-# ألوان الهوية (من شعار VP Developer)
-BLUE = (30, 136, 229, 255)     # V الأزرق
-NAVY = (26, 35, 126, 255)      # P الكحلي
-RED = (229, 57, 53, 255)       # اللمسة الحمراء
+# فضاء الرسم المنطقي 1024×1024 مضروب في SS للتنعيم (supersampling)
+SS = 4
+CANVAS = 1024
+
+# ألوان الأيقونة
+BLUE_TOP = (62, 169, 245)      # أزرق فاتح أعلى التدرج
+BLUE_BOTTOM = (23, 118, 220)   # أزرق أعمق أسفل التدرج
 WHITE = (255, 255, 255, 255)
 
 
-def _font(size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(FONT_BOLD, size)
+def s(v: float) -> int:
+    """تحويل إحداثي من فضاء 1024 إلى فضاء الرسم المكبّر."""
+    return int(round(v * SS))
 
 
-def draw_monogram(draw: ImageDraw.ImageDraw, cx: int, cy: int, size: int) -> None:
-    """رسم مونوغرام VP: حرف V أزرق وحرف P كحلي متقاربان مع مثلث أحمر صغير
-    أسفل يسار الحرف V (كما في الشعار الأصلي)."""
-    font = _font(size)
-    # تقارب الحرفين يدوياً كي يتلاصقا كما في الشعار
-    gap = int(size * 0.30)
-    draw.text((cx - gap, cy), "V", font=font, fill=BLUE, anchor="mm")
-    draw.text((cx + gap, cy), "P", font=font, fill=NAVY, anchor="mm")
-    # المثلث الأحمر أسفل يسار الـ V
-    tri_w = int(size * 0.16)
-    tri_h = int(size * 0.13)
-    tx = cx - gap - int(size * 0.30)
-    ty = cy + int(size * 0.34)
-    draw.polygon(
-        [(tx, ty), (tx + tri_w, ty), (tx, ty - tri_h)],
-        fill=RED,
-    )
+def gradient_color(y: float) -> tuple:
+    """لون التدرج عند ارتفاع y (فضاء 1024)."""
+    t = max(0.0, min(1.0, y / CANVAS))
+    return tuple(
+        int(BLUE_TOP[i] + (BLUE_BOTTOM[i] - BLUE_TOP[i]) * t) for i in range(3)
+    ) + (255,)
 
 
-def draw_book(draw: ImageDraw.ImageDraw, cx: int, cy: int, w: int) -> None:
-    """كتاب مفتوح مبسّط (صفحتان + خط وسط) — يوحي بتعلم المفردات."""
-    h = int(w * 0.42)
-    spine = 4
-    # الصفحة اليسرى
-    draw.polygon(
-        [
-            (cx - spine, cy - int(h * 0.45)),
-            (cx - w // 2, cy - int(h * 0.20)),
-            (cx - w // 2, cy + int(h * 0.45)),
-            (cx - spine, cy + int(h * 0.20)),
-        ],
-        fill=NAVY,
-    )
-    # الصفحة اليمنى
-    draw.polygon(
-        [
-            (cx + spine, cy - int(h * 0.45)),
-            (cx + w // 2, cy - int(h * 0.20)),
-            (cx + w // 2, cy + int(h * 0.45)),
-            (cx + spine, cy + int(h * 0.20)),
-        ],
-        fill=BLUE,
-    )
-
-
-def draw_icon_content(img: Image.Image) -> None:
-    """محتوى الأيقونة (يُرسم على خلفية جاهزة 1024×1024)."""
+def make_background() -> Image.Image:
+    """خلفية زرقاء متدرجة عمودياً مع توهج أبيض خفيف خلف المصباح."""
+    size = s(CANVAS)
+    img = Image.new("RGBA", (size, size))
     draw = ImageDraw.Draw(img)
-    draw_monogram(draw, 512, 400, 470)
-    # شريط أحمر تحت المونوغرام
-    draw.rounded_rectangle([302, 668, 722, 716], radius=24, fill=RED)
-    # كتاب صغير أسفل الشريط
-    draw_book(draw, 512, 830, 220)
+    for yy in range(size):
+        draw.line([(0, yy), (size, yy)], fill=gradient_color(yy / SS))
 
-
-def make_android_master() -> Image.Image:
-    """أيقونة أندرويد: مربع أبيض بزوايا دائرية على خلفية شفافة."""
-    img = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.rounded_rectangle([0, 0, 1023, 1023], radius=180, fill=WHITE)
-    draw_icon_content(img)
+    # توهج شعاعي أبيض خلف المصباح
+    glow = Image.new("L", (size, size), 0)
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse(
+        [s(512 - 300), s(400 - 300), s(512 + 300), s(400 + 300)], fill=90
+    )
+    glow = glow.filter(ImageFilter.GaussianBlur(s(90)))
+    white = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+    white.putalpha(glow)
+    img = Image.alpha_composite(img, white)
     return img
 
 
-def make_ios_master() -> Image.Image:
-    """أيقونة iOS: مربع مصمت كامل (Apple تقصّ الزوايا بنفسها، وترفض الشفافية)."""
-    img = Image.new("RGB", (1024, 1024), (255, 255, 255))
-    draw_icon_content(img)
-    return img
+def _stroke_line(draw, pts, width):
+    """خط متعدد النقاط بأطراف دائرية (يمنع الفجوات عند الزوايا)."""
+    w = s(width)
+    pts = [(s(x), s(y)) for x, y in pts]
+    draw.line(pts, fill=WHITE, width=w, joint="curve")
+    r = w // 2
+    for x, y in (pts[0], pts[-1]):
+        draw.ellipse([x - r, y - r, x + r, y + r], fill=WHITE)
 
 
-def make_splash_logo() -> Image.Image:
-    """شعار السبلاش: مونوغرام VP كبير وتحته DEVELOPER (حرف R الأخير أحمر)."""
-    img = Image.new("RGBA", (800, 600), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw_monogram(draw, 400, 250, 340)
-    # كلمة DEVELOPER بتباعد أحرف؛ الأحرف الأخيرة R حمراء كما في الشعار الأصلي
-    word = "DEVELOPER"
-    font = _font(72)
-    spacing = 10
-    widths = [draw.textlength(ch, font=font) for ch in word]
-    total = sum(widths) + spacing * (len(word) - 1)
-    x = 400 - total / 2
-    y = 500
-    for i, ch in enumerate(word):
-        color = RED if i == len(word) - 1 else NAVY
-        draw.text((x, y), ch, font=font, fill=color, anchor="lm")
-        x += widths[i] + spacing
-    return img
+def _quad_bezier(p0, p1, p2, n=40):
+    return [
+        (
+            (1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t**2 * p2[0],
+            (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t**2 * p2[1],
+        )
+        for t in (i / n for i in range(n + 1))
+    ]
+
+
+# هندسة المصباح (فضاء 1024) — تُستخدم للرسم ولقناع الفجوة معاً
+BULB_CX, BULB_CY, BULB_R = 512, 398, 118
+BASE_TOP = BULB_CY + BULB_R + 8
+BASE_WIDTHS = (148, 126, 102)
+BAR_H, BAR_GAP = 28, 12
+
+
+def draw_book(draw: ImageDraw.ImageDraw) -> None:
+    """كتاب مفتوح: ثلاث طبقات صفحات على كل جانب + صفحات سفلية منحنية
+    تلتقي في نقطة الوسط (شكل V)."""
+    stroke = 20
+    for i in range(3):
+        out_x_l = 272 + i * 40
+        out_x_r = CANVAS - out_x_l
+        top_y = 448 + i * 28
+        bot_y = 640
+        # الجانب الأيسر: حافة علوية أفقية + حافة خارجية عمودية
+        _stroke_line(draw, [(out_x_l, top_y), (500, top_y)], stroke)
+        _stroke_line(draw, [(out_x_l, top_y), (out_x_l, bot_y)], stroke)
+        # الجانب الأيمن (مرآة)
+        _stroke_line(draw, [(524, top_y), (out_x_r, top_y)], stroke)
+        _stroke_line(draw, [(out_x_r, top_y), (out_x_r, bot_y)], stroke)
+        # الصفحة السفلية المنحنية نحو نقطة الوسط
+        curve_l = _quad_bezier(
+            (out_x_l, bot_y),
+            (398, bot_y + 26 + i * 24),
+            (512, bot_y + 30 + i * 24),
+        )
+        curve_r = [(CANVAS - x, y) for x, y in curve_l]
+        _stroke_line(draw, curve_l, stroke)
+        _stroke_line(draw, curve_r, stroke)
+
+
+def bulb_silhouette_mask(pad: int) -> Image.Image:
+    """قناع صورة ظلّية للمصباح (زجاجة + قاعدة + ساق) موسَّع بمقدار pad —
+    يُستخدم لمحو خطوط الكتاب خلف المصباح فتظهر فجوة زرقاء نظيفة حوله."""
+    mask = Image.new("L", (s(CANVAS), s(CANVAS)), 0)
+    d = ImageDraw.Draw(mask)
+    cx, cy, r = BULB_CX, BULB_CY, BULB_R + pad
+    d.ellipse([s(cx - r), s(cy - r), s(cx + r), s(cy + r)], fill=255)
+    half_w = BASE_WIDTHS[0] / 2 + pad
+    base_bottom = BASE_TOP + len(BASE_WIDTHS) * (BAR_H + BAR_GAP) + pad
+    d.rounded_rectangle(
+        [s(cx - half_w), s(cy + r - 20), s(cx + half_w), s(base_bottom)],
+        radius=s(24),
+        fill=255,
+    )
+    # الساق حتى وسط الكتاب (بلا توسيع سفلي كي تلمس نقطة الـ V)
+    d.rectangle([s(cx - 10 - pad), s(base_bottom - pad), s(cx + 10 + pad), s(688)], fill=255)
+    return mask
+
+
+def draw_bulb(img: Image.Image, draw: ImageDraw.ImageDraw) -> None:
+    """مصباح إضاءة أبيض: زجاجة دائرية بفتيل أزرق، قاعدة لولبية،
+    وساق تنزل إلى وسط الكتاب."""
+    cx, cy, r = BULB_CX, BULB_CY, BULB_R
+
+    # زجاجة المصباح
+    draw.ellipse([s(cx - r), s(cy - r), s(cx + r), s(cy + r)], fill=WHITE)
+
+    # الفتيل الأزرق: حلقتان متجاورتان يتصل أسفلهما بسلكين قصيرين نحو العنق
+    fil = gradient_color(cy)
+    fw = s(14)
+    for dx in (-32, 32):
+        lx = cx + dx
+        draw.ellipse(
+            [s(lx - 30), s(cy - 16), s(lx + 30), s(cy + 52)],
+            outline=fil,
+            width=fw,
+        )
+    for dx, bx in ((-32, -48), (32, 48)):
+        draw.line(
+            [(s(cx + dx), s(cy + 46)), (s(cx + bx), s(cy + r - 18))],
+            fill=fil,
+            width=fw,
+        )
+
+    # القاعدة اللولبية: ثلاث درجات بيضاء بعرض متناقص
+    for i, wdt in enumerate(BASE_WIDTHS):
+        y0 = BASE_TOP + i * (BAR_H + BAR_GAP)
+        draw.rounded_rectangle(
+            [s(cx - wdt / 2), s(y0), s(cx + wdt / 2), s(y0 + BAR_H)],
+            radius=s(BAR_H / 2),
+            fill=WHITE,
+        )
+    # الساق النازلة إلى نقطة التقاء الصفحات
+    stem_top = BASE_TOP + len(BASE_WIDTHS) * (BAR_H + BAR_GAP) - 6
+    _stroke_line(draw, [(cx, stem_top), (cx, 682)], 18)
+
+
+def draw_icon_art(img: Image.Image) -> None:
+    # طبقة الكتاب منفصلة كي نمحو منها ظلّ المصباح الموسَّع (فجوة نظيفة
+    # بلون الخلفية نفسها بدل ترقيع بألوان مقاربة).
+    book_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    draw_book(ImageDraw.Draw(book_layer))
+    punch = bulb_silhouette_mask(pad=26)
+    alpha = book_layer.getchannel("A")
+    alpha.paste(0, mask=punch)
+    book_layer.putalpha(alpha)
+    img.alpha_composite(book_layer)
+
+    draw_bulb(img, ImageDraw.Draw(img))
+
+
+def make_master_square() -> Image.Image:
+    """الأيقونة المصدرية: مربع كامل مصمت (لـ iOS ومتجر التطبيقات)."""
+    img = make_background()
+    draw_icon_art(img)
+    return img.resize((CANVAS, CANVAS), Image.LANCZOS)
+
+
+def rounded(master: Image.Image, radius: int = 230) -> Image.Image:
+    """نسخة بزوايا دائرية شفافة (لأندرويد والسبلاش)."""
+    mask = Image.new("L", (CANVAS * SS, CANVAS * SS), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        [0, 0, CANVAS * SS - 1, CANVAS * SS - 1], radius=radius * SS, fill=255
+    )
+    mask = mask.resize((CANVAS, CANVAS), Image.LANCZOS)
+    out = master.convert("RGBA").copy()
+    out.putalpha(mask)
+    return out
 
 
 def save(img: Image.Image, rel_path: str) -> None:
@@ -135,12 +223,11 @@ def resize(img: Image.Image, px: int) -> Image.Image:
 
 def main() -> None:
     print("== الأصول الرئيسية ==")
-    android_master = make_android_master()
-    ios_master = make_ios_master()
-    splash = make_splash_logo()
+    master = make_master_square()
+    android_master = rounded(master)
 
-    save(android_master, "assets/icon/app_icon.png")
-    save(splash, "assets/images/vp_logo.png")
+    save(master, "assets/icon/app_icon.png")
+    save(android_master, "assets/images/vp_logo.png")
 
     print("== أيقونات Android ==")
     android_sizes = {
@@ -168,7 +255,7 @@ def main() -> None:
         px = round(base * scale)
         seen[entry["filename"]] = px
     for filename, px in seen.items():
-        save(resize(ios_master, px), f"{appiconset}/{filename}")
+        save(resize(master.convert("RGB"), px), f"{appiconset}/{filename}")
 
     print("تمّ التوليد بنجاح ✓")
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import 'screens/splash_screen.dart';
+import 'theme/app_theme.dart';
 
 /// مفتاح تنقّل عام — تحتاجه خدمة الإشعارات لفتح جلسة اختبار عند النقر
 /// على إشعار التذكير من خارج شجرة الواجهات.
@@ -7,22 +9,19 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const VocabVaultApp());
+  runApp(const MofradatiApp());
 }
 
-class VocabVaultApp extends StatelessWidget {
-  const VocabVaultApp({super.key});
+class MofradatiApp extends StatelessWidget {
+  const MofradatiApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'VocabVault',
+      title: 'Mofradati',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
       home: const SplashScreen(),
     );
   }

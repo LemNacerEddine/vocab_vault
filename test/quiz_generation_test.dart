@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vocab_vault/models/question_type.dart';
-import 'package:vocab_vault/models/word.dart';
-import 'package:vocab_vault/services/distractor_service.dart';
-import 'package:vocab_vault/services/local_question_generator_service.dart';
-import 'package:vocab_vault/services/quiz_validation_service.dart';
+import 'package:mofradati/models/question_type.dart';
+import 'package:mofradati/models/word.dart';
+import 'package:mofradati/services/distractor_service.dart';
+import 'package:mofradati/services/local_question_generator_service.dart';
+import 'package:mofradati/services/quiz_validation_service.dart';
 
 /// كلمات اختبار ثابتة (بدون إنترنت) تحاكي بيانات محفوظة فعلياً بعد الإضافة،
 /// لاختبار مولّد الأسئلة المحلي على أمثلة واقعية: go, went, apple,

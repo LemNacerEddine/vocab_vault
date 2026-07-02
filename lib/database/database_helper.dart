@@ -11,7 +11,7 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('vocab_vault.db');
+    _database = await _initDB('mofradati.db');
     return _database!;
   }
 

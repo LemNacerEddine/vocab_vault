@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../database/database_helper.dart';
+import '../theme/app_theme.dart';
 import '../models/quiz_pack.dart';
 import '../models/word.dart';
 import '../services/dictionary_service.dart';
@@ -165,7 +166,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
       appBar: AppBar(
         title: const Text('إضافة كلمة جديدة'),
         centerTitle: true,
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -175,7 +176,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.deepPurple.shade50,
+              AppColors.brand.shade50,
               Colors.white,
             ],
           ),
@@ -255,14 +256,14 @@ class _AddWordScreenState extends State<AddWordScreen> {
             decoration: InputDecoration(
               labelText: 'الكلمة بالإنجليزية',
               hintText: 'مثال: Resilient',
-              prefixIcon: const Icon(Icons.abc, color: Colors.deepPurple),
+              prefixIcon: const Icon(Icons.abc, color: AppColors.brand),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide:
-                    const BorderSide(color: Colors.deepPurple, width: 2),
+                    const BorderSide(color: AppColors.brand, width: 2),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -283,7 +284,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
           child: ElevatedButton(
             onPressed: _isSearching ? null : _searchWord,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
+              backgroundColor: AppColors.brand,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -372,7 +373,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
                             text: result.rootWord!,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.deepPurple.shade700,
+                              color: AppColors.brand.shade700,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -408,7 +409,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+                      color: AppColors.brand,
                     ),
                   ),
                 ),
@@ -422,21 +423,21 @@ class _AddWordScreenState extends State<AddWordScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade50,
+                  color: AppColors.brand.shade50,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.volume_up,
-                        size: 16, color: Colors.deepPurple.shade400),
+                        size: 16, color: AppColors.brand.shade400),
                     const SizedBox(width: 6),
                     Text(
                       result.phonetic!,
                       style: TextStyle(
                         fontSize: 15,
                         fontStyle: FontStyle.italic,
-                        color: Colors.deepPurple.shade700,
+                        color: AppColors.brand.shade700,
                       ),
                     ),
                   ],
@@ -676,7 +677,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.image, color: Colors.deepPurple.shade400),
+                Icon(Icons.image, color: AppColors.brand.shade400),
                 const SizedBox(width: 8),
                 const Text(
                   'اختر صورة توضيحية',
@@ -709,14 +710,14 @@ class _AddWordScreenState extends State<AddWordScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected
-                              ? Colors.deepPurple
+                              ? AppColors.brand
                               : Colors.grey[300]!,
                           width: isSelected ? 3 : 1,
                         ),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: Colors.deepPurple.withOpacity(0.3),
+                                  color: AppColors.brand.withOpacity(0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 )
@@ -740,7 +741,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
                             ),
                             if (isSelected)
                               Container(
-                                color: Colors.deepPurple.withOpacity(0.3),
+                                color: AppColors.brand.withOpacity(0.3),
                                 child: const Center(
                                   child: Icon(
                                     Icons.check_circle,
@@ -788,7 +789,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
       decoration: InputDecoration(
         labelText: 'الترجمة بالعربية',
         hintText: 'ستُملأ تلقائياً أو أدخلها يدوياً',
-        prefixIcon: const Icon(Icons.language, color: Colors.deepPurple),
+        prefixIcon: const Icon(Icons.language, color: AppColors.brand),
         suffixIcon: _translationController.text.isNotEmpty
             ? Icon(Icons.auto_fix_high,
                 color: Colors.green.shade400, size: 20)
@@ -798,7 +799,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.deepPurple, width: 2),
+          borderSide: const BorderSide(color: AppColors.brand, width: 2),
         ),
         filled: true,
         fillColor: Colors.white,
@@ -831,7 +832,7 @@ class _AddWordScreenState extends State<AddWordScreen> {
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepPurple,
+          backgroundColor: AppColors.brand,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

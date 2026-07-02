@@ -1,5 +1,5 @@
-name: vocab_vault
-description: "A smart vocabulary learning app using spaced repetition."
+name: mofradati
+description: "Mofradati — a smart offline vocabulary learning app using spaced repetition."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -64,10 +64,29 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # أصول الهوية (شعار VP Developer وأيقونة التطبيق)
+  # أصول الهوية (أيقونة Mofradati وشعار السبلاش)
   assets:
     - assets/images/
     - assets/icon/
+
+  # خطوط نظام التصميم: Hanken Grotesk للعناوين وInter للنصوص
+  fonts:
+    - family: Hanken Grotesk
+      fonts:
+        - asset: assets/fonts/HankenGrotesk-Regular.ttf
+        - asset: assets/fonts/HankenGrotesk-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/HankenGrotesk-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/HankenGrotesk-ExtraBold.ttf
+          weight: 800
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

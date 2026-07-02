@@ -3,6 +3,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../database/database_helper.dart';
+import '../theme/app_theme.dart';
 import '../models/quiz_question.dart';
 import '../models/word_progress.dart';
 import '../services/mastery_service.dart';
@@ -100,7 +101,7 @@ class _QuizScreenState extends State<QuizScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('السؤال ${_index + 1} من $total'),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
       ),
       body: Container(
@@ -108,15 +109,15 @@ class _QuizScreenState extends State<QuizScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.deepPurple.shade50, Colors.white],
+            colors: [AppColors.brand.shade50, Colors.white],
           ),
         ),
         child: Column(
           children: [
             LinearProgressIndicator(
               value: total == 0 ? 0 : _index / total,
-              backgroundColor: Colors.deepPurple.shade100,
-              color: Colors.deepPurple,
+              backgroundColor: AppColors.brand.shade100,
+              color: AppColors.brand,
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -146,10 +147,10 @@ class _QuizScreenState extends State<QuizScreen> {
     return Align(
       alignment: Alignment.center,
       child: Chip(
-        avatar: Icon(QuestionTypeLabels.icon(q.type), size: 16, color: Colors.deepPurple),
+        avatar: Icon(QuestionTypeLabels.icon(q.type), size: 16, color: AppColors.brand),
         label: Text(QuestionTypeLabels.arabic(q.type)),
-        backgroundColor: Colors.deepPurple.shade50,
-        labelStyle: TextStyle(color: Colors.deepPurple.shade700, fontSize: 12),
+        backgroundColor: AppColors.brand.shade50,
+        labelStyle: TextStyle(color: AppColors.brand.shade700, fontSize: 12),
       ),
     );
   }
@@ -207,7 +208,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 icon: const Icon(Icons.volume_up),
                 label: const Text('استمع للنطق'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
+                  backgroundColor: AppColors.brand,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
@@ -318,7 +319,7 @@ class _QuizScreenState extends State<QuizScreen> {
         child: ElevatedButton(
           onPressed: _next,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.deepPurple,
+            backgroundColor: AppColors.brand,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -341,7 +342,7 @@ class _QuizScreenState extends State<QuizScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('نتيجة الجلسة'),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
       ),
@@ -350,7 +351,7 @@ class _QuizScreenState extends State<QuizScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.deepPurple.shade50, Colors.white],
+            colors: [AppColors.brand.shade50, Colors.white],
           ),
         ),
         child: SingleChildScrollView(
@@ -378,7 +379,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 child: ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
+                    backgroundColor: AppColors.brand,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -439,7 +440,7 @@ class _QuizScreenState extends State<QuizScreen> {
     if (!_answered) {
       return _OptionColors(
         background: Colors.white,
-        border: Colors.deepPurple.shade100,
+        border: AppColors.brand.shade100,
         text: Colors.black87,
       );
     }

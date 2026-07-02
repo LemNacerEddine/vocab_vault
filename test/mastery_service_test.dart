@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vocab_vault/models/question_type.dart';
-import 'package:vocab_vault/models/word_progress.dart';
-import 'package:vocab_vault/services/mastery_service.dart';
+import 'package:mofradati/models/question_type.dart';
+import 'package:mofradati/models/word_progress.dart';
+import 'package:mofradati/services/mastery_service.dart';
 
 void main() {
   group('MasteryService.applyAnswer', () {
