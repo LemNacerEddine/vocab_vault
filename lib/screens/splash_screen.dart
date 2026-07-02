@@ -109,156 +109,161 @@ class _SplashScreenState extends State<SplashScreen>
               size: 350,
             ),
           ),
-          Column(
-            children: [
-              const Spacer(flex: 3),
-              // المجموعة المركزية: الأيقونة + الاسم + الشعار
-              ScaleTransition(
-                scale: Tween<double>(begin: 0.9, end: 1.0).animate(entry),
-                child: FadeTransition(
-                  opacity: _entryController,
+          // المحتوى الرئيسي: يملأ الشاشة بالكامل (Positioned.fill يجبر
+          // الـ Column على أخذ عرض/ارتفاع الشاشة كاملَين، بدل التقلّص
+          // لعرض أوسع عنصر بداخله فقط وهو ما كان يترك نصف الشاشة فارغاً).
+          Positioned.fill(
+            child: Column(
+              children: [
+                const Spacer(flex: 3),
+                // المجموعة المركزية: الأيقونة + الاسم + الشعار
+                ScaleTransition(
+                  scale: Tween<double>(begin: 0.9, end: 1.0).animate(entry),
+                  child: FadeTransition(
+                    opacity: _entryController,
+                    child: Column(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.focusBlue.withOpacity(0.12),
+                                blurRadius: 40,
+                                offset: const Offset(0, 12),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(28),
+                            child: Image.asset(
+                              'assets/icon/app_icon.png',
+                              width: 128,
+                              height: 128,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        const Text(
+                          'Mofradati',
+                          style: TextStyle(
+                            fontFamily: AppTheme.headlineFont,
+                            fontSize: 40,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.8,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'KNOWLEDGE SEEKER',
+                          style: TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 4,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 64),
+                // شريط التقدم (أخضر النمو على مسار رمادي فاتح)
+                SizedBox(
+                  width: 128,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: AnimatedBuilder(
+                      animation: _progressController,
+                      builder: (context, _) => LinearProgressIndicator(
+                        value: _progressController.value,
+                        minHeight: 4,
+                        backgroundColor: AppColors.surfaceContainer,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.growthGreen,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const Spacer(flex: 3),
+                // التذييل: اعتمادات المطوّر والمؤسسة
+                FadeTransition(
+                  opacity: _footerController,
                   child: Column(
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.focusBlue.withOpacity(0.12),
-                              blurRadius: 40,
-                              offset: const Offset(0, 12),
+                      Image.asset('assets/images/vp_logo.png', height: 36),
+                      const SizedBox(height: 10),
+                      Text.rich(
+                        TextSpan(
+                          text: 'Created by ',
+                          style: const TextStyle(
+                            fontFamily: AppTheme.bodyFont,
+                            fontSize: 12,
+                            color: AppColors.onSurfaceVariant,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: 'Lemmouchi Nacereddine',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
                             ),
                           ],
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(28),
-                          child: Image.asset(
-                            'assets/icon/app_icon.png',
-                            width: 128,
-                            height: 128,
-                            fit: BoxFit.cover,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'VP Developer',
+                            style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontSize: 12,
+                              color: AppColors.outline,
+                            ),
                           ),
-                        ),
+                          Container(
+                            width: 4,
+                            height: 4,
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: const BoxDecoration(
+                              color: AppColors.outlineVariant,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const Text(
+                            'Group VP Developer',
+                            style: TextStyle(
+                              fontFamily: AppTheme.bodyFont,
+                              fontSize: 12,
+                              color: AppColors.outline,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 10),
                       const Text(
-                        'Mofradati',
-                        style: TextStyle(
-                          fontFamily: AppTheme.headlineFont,
-                          fontSize: 40,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.8,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'KNOWLEDGE SEEKER',
+                        'www.vpdeveloper.dz',
                         style: TextStyle(
                           fontFamily: AppTheme.bodyFont,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 4,
-                          color: AppColors.onSurfaceVariant,
+                          fontSize: 12,
+                          color: AppColors.secondary,
+                          decoration: TextDecoration.underline,
+                          decorationColor: AppColors.outlineVariant,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 64),
-              // شريط التقدم (أخضر النمو على مسار رمادي فاتح)
-              SizedBox(
-                width: 128,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: AnimatedBuilder(
-                    animation: _progressController,
-                    builder: (context, _) => LinearProgressIndicator(
-                      value: _progressController.value,
-                      minHeight: 4,
-                      backgroundColor: AppColors.surfaceContainer,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        AppColors.growthGreen,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const Spacer(flex: 3),
-              // التذييل: اعتمادات المطوّر والمؤسسة
-              FadeTransition(
-                opacity: _footerController,
-                child: Column(
-                  children: [
-                    Image.asset('assets/images/vp_logo.png', height: 36),
-                    const SizedBox(height: 10),
-                    Text.rich(
-                      TextSpan(
-                        text: 'Created by ',
-                        style: const TextStyle(
-                          fontFamily: AppTheme.bodyFont,
-                          fontSize: 12,
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: 'Lemmouchi Nacereddine',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'VP Developer',
-                          style: TextStyle(
-                            fontFamily: AppTheme.bodyFont,
-                            fontSize: 12,
-                            color: AppColors.outline,
-                          ),
-                        ),
-                        Container(
-                          width: 4,
-                          height: 4,
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: const BoxDecoration(
-                            color: AppColors.outlineVariant,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const Text(
-                          'Group VP Developer',
-                          style: TextStyle(
-                            fontFamily: AppTheme.bodyFont,
-                            fontSize: 12,
-                            color: AppColors.outline,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'www.vpdeveloper.dz',
-                      style: TextStyle(
-                        fontFamily: AppTheme.bodyFont,
-                        fontSize: 12,
-                        color: AppColors.secondary,
-                        decoration: TextDecoration.underline,
-                        decorationColor: AppColors.outlineVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 48),
-            ],
+                const SizedBox(height: 48),
+              ],
+            ),
           ),
         ],
       ),
